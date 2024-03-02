@@ -47,6 +47,8 @@ def point_to_list(point_coord):
 df = load_db_from_excel(FILEPATH)
 gdf = gpd.GeoDataFrame(df, geometry=gpd.points_from_xy(df.X, df.Y))
 
+report_type = project_type()
+
 # Get input data
 coord_init = get_coord_by_pharma_id(gdf)
 new_coordinates = coordinate_new_implantation()

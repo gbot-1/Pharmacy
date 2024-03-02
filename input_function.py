@@ -67,3 +67,22 @@ def date_and_ref():
                 print("Faut lire la demande... 'DD/MM/YYYY, 24.XXX' séparé par une virgule")
         except ValueError:
             print("Nique toi, je sais pas comment c'est possible d'avoir cette erreur")
+
+def project_type():
+    while True:
+        try: 
+            print("Sélectionner le type de rapport à générer :")
+            print("1) Transfert")
+            print("2) Fusion")
+            print("3) Transfert + fusion")
+            userInput = int(input("Choisir le numéro correspondant : "))
+
+            if userInput not in {1, 2, 3}:
+                print("\nwesh tu essaye de faire quoi\n")
+            else:
+                if userInput == 3:
+                    return userInput
+                else:
+                    print("\nC'est pas encore implémenté mdrrrr sois patient bebou\n")   
+        except ValueError:
+            print("heuuuuuuu appelle moi mdr")
