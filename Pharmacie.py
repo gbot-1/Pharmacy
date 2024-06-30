@@ -15,6 +15,7 @@ from distance_function import*
 from Create_tex_pdf import*
 from Map_function import*
 from save_fig import*
+from polygon_drawing import*
 
 FILEPATH = 'D:/Pharmacy_Raph/Lst_Pharmacies_pub_Extended.xlsx'
 TEMPLATE_PATH = 'D:/Pharmacy_Raph/Codes/template_rapport.tex'
@@ -47,7 +48,7 @@ def point_to_list(point_coord):
 df = load_db_from_excel(FILEPATH)
 gdf = gpd.GeoDataFrame(df, geometry=gpd.points_from_xy(df.X, df.Y))
 
-report_type = project_type()
+# report_type = project_type()
 
 # Get input data
 coord_init = get_coord_by_pharma_id(gdf)
@@ -82,78 +83,91 @@ else:
     closest_points_new = closest_points_new.reset_index(drop=True)
 closest_points_new.to_csv(os.path.join(folder_path, 'distance_closest_points_new.csv'))
 
-##########################################################################################
-html_path = os.path.join(MAIN_FOLDER, YEAR, folder_name, HTML_NEW_PHARMACY)
-new_implentation_png = os.path.join(MAIN_FOLDER, YEAR, folder_name, MAP_NEW_PHARMACY)
-html_path_all_old = os.path.join(MAIN_FOLDER, YEAR, folder_name, HTML_ALL_PHARMACY_OLD)
-html_path_all_new = os.path.join(MAIN_FOLDER, YEAR, folder_name, HTML_ALL_PHARMACY_NEW)
-all_itinerary_old_png = os.path.join(MAIN_FOLDER, YEAR, folder_name, MAP_ALL_PHARMACY_OLD)
-all_itinerary_new_png = os.path.join(MAIN_FOLDER, YEAR, folder_name, MAP_ALL_PHARMACY_NEW)
-start_coords = point_to_list(coord_init)
-end_coords = point_to_list(new_coordinates)
+############################################################################################
+"""Polygon drawing"""
+x_percentage = 0.3
+nb_vertex = 7
 
-# Get the route geometry
-route_geometry = get_route(start_coords, end_coords, API_KEY)
+reference_point = closest_points_new.geometry.iloc[0]
 
-# Display the route
-if route_geometry:
-    display_route(route_geometry, html_path)
-else:
-    print("Failed to retrieve route")
+zone_protection = generate_polygon(closest_points_new, reference_point, x_percentage, nb_vertex)
 
-save_svg_to_png(html_path, new_implentation_png)
+plot_polygon(closest_points_new, reference_point, zone_protection, x_percentage, nb_vertex)
 
-display_route_all_pharma(closest_points_old, API_KEY, html_path_all_old, 1)
+find_points_in_polygon('adresses.csv', zone_protection, 'adresses_in_polygon.csv')
 
-save_svg_to_png(html_path_all_old, all_itinerary_old_png)
+# ##########################################################################################
+# html_path = os.path.join(MAIN_FOLDER, YEAR, folder_name, HTML_NEW_PHARMACY)
+# new_implentation_png = os.path.join(MAIN_FOLDER, YEAR, folder_name, MAP_NEW_PHARMACY)
+# html_path_all_old = os.path.join(MAIN_FOLDER, YEAR, folder_name, HTML_ALL_PHARMACY_OLD)
+# html_path_all_new = os.path.join(MAIN_FOLDER, YEAR, folder_name, HTML_ALL_PHARMACY_NEW)
+# all_itinerary_old_png = os.path.join(MAIN_FOLDER, YEAR, folder_name, MAP_ALL_PHARMACY_OLD)
+# all_itinerary_new_png = os.path.join(MAIN_FOLDER, YEAR, folder_name, MAP_ALL_PHARMACY_NEW)
+# start_coords = point_to_list(coord_init)
+# end_coords = point_to_list(new_coordinates)
 
-display_route_all_pharma(closest_points_new, API_KEY, html_path_all_new, 0)
+# # Get the route geometry
+# route_geometry = get_route(start_coords, end_coords, API_KEY)
 
-save_svg_to_png(html_path_all_new, all_itinerary_new_png)
+# # Display the route
+# if route_geometry:
+#     display_route(route_geometry, html_path)
+# else:
+#     print("Failed to retrieve route")
 
-##########################################################################################
-"""Creates the .tex files"""
-tex_dictionary = {
-    'Name_pharma': closest_points_old.iloc[0,1],
-    'Id_pharma': str(closest_points_old.iloc[0,0]),
-    'Old_adress' : closest_points_old.iloc[0,2],
-    'Old_postcode' : str(closest_points_old.iloc[0,3]),
-    'Old_town' : closest_points_old.iloc[0,4],
-    'New_adress': New_adresse[0],
-    'New_postcode': New_adresse[1],
-    'New_town' : New_adresse[2],
-    'Old_X' : str(closest_points_old.iloc[0,5]),
-    'Old_Y' : str(closest_points_old.iloc[0,6]),
-    'New_X' : str(x_y_new_implentation[0]),
-    'New_Y' : str(x_y_new_implentation[1]),
-    'Date_plan' : ref_plan[0],
-    'Ref_dossier' : ref_plan[1],
-    'Distance_road' : str(get_road_distance(point_to_list(coord_init), point_to_list(new_coordinates), API_KEY)),
-    'Distance_fly' : str(round(distance_fly_old_new_implantation(coord_init, new_coordinates),2)),
-    'Map_new_implentation' : new_implentation_png.replace('\\', '/'),
-    'Map_all_itinerary_old' : all_itinerary_old_png.replace('\\','/'),
-    'Map_all_itinerary_new' : all_itinerary_new_png.replace('\\','/')
-}
+# save_svg_to_png(html_path, new_implentation_png)
 
-# Ensure the folder name is valid and does not exist
-folder_path_tex = os.path.join(folder_path, FOLDER_NAME_TEX)
-create_folder(folder_path_tex)
+# display_route_all_pharma(closest_points_old, API_KEY, html_path_all_old, 1)
 
-output_path = folder_path_tex + '/' + folder_name + '.tex'       # Path for the generated LaTeX file
-generate_main_latex(TEMPLATE_PATH, output_path, tex_dictionary)
+# save_svg_to_png(html_path_all_old, all_itinerary_old_png)
 
-# Creation of the tables
-latex_file_path = folder_path_tex + '/table_old_implentation.tex'# Replace with your desired output file path
-csv_path_old = folder_path + '/distance_closest_points_old.csv'
-csv_to_latex_table(csv_path_old, latex_file_path, True)
+# display_route_all_pharma(closest_points_new, API_KEY, html_path_all_new, 0)
 
-latex_file_path = folder_path_tex + '/table_new_implentation.tex'# Replace with your desired output file path
-csv_path_new = folder_path + '/distance_closest_points_new.csv'
-csv_to_latex_table(csv_path_new, latex_file_path, False)
+# save_svg_to_png(html_path_all_new, all_itinerary_new_png)
 
-compile_tex_to_pdf(os.path.join(MAIN_FOLDER, YEAR, folder_name, "Tex_files"), folder_name +'.tex')
+# #########################################################################################
+# """Creates the .tex files"""
+# tex_dictionary = {
+#     'Name_pharma': closest_points_old.iloc[0,1],
+#     'Id_pharma': str(closest_points_old.iloc[0,0]),
+#     'Old_adress' : closest_points_old.iloc[0,2],
+#     'Old_postcode' : str(closest_points_old.iloc[0,3]),
+#     'Old_town' : closest_points_old.iloc[0,4],
+#     'New_adress': New_adresse[0],
+#     'New_postcode': New_adresse[1],
+#     'New_town' : New_adresse[2],
+#     'Old_X' : str(closest_points_old.iloc[0,5]),
+#     'Old_Y' : str(closest_points_old.iloc[0,6]),
+#     'New_X' : str(x_y_new_implentation[0]),
+#     'New_Y' : str(x_y_new_implentation[1]),
+#     'Date_plan' : ref_plan[0],
+#     'Ref_dossier' : ref_plan[1],
+#     'Distance_road' : str(get_road_distance(point_to_list(coord_init), point_to_list(new_coordinates), API_KEY)),
+#     'Distance_fly' : str(round(distance_fly_old_new_implantation(coord_init, new_coordinates),2)),
+#     'Map_new_implentation' : new_implentation_png.replace('\\', '/'),
+#     'Map_all_itinerary_old' : all_itinerary_old_png.replace('\\','/'),
+#     'Map_all_itinerary_new' : all_itinerary_new_png.replace('\\','/')
+# }
 
-##########################################################################################
-end_time_overall = time.time()
-elapsed_time_overall =  end_time_overall - start_time_overall
-print(f"Temps overall {round(elapsed_time_overall, 2)}s")
+# # Ensure the folder name is valid and does not exist
+# folder_path_tex = os.path.join(folder_path, FOLDER_NAME_TEX)
+# create_folder(folder_path_tex)
+
+# output_path = folder_path_tex + '/' + folder_name + '.tex'       # Path for the generated LaTeX file
+# generate_main_latex(TEMPLATE_PATH, output_path, tex_dictionary)
+
+# # Creation of the tables
+# latex_file_path = folder_path_tex + '/table_old_implentation.tex'# Replace with your desired output file path
+# csv_path_old = folder_path + '/distance_closest_points_old.csv'
+# csv_to_latex_table(csv_path_old, latex_file_path, True)
+
+# latex_file_path = folder_path_tex + '/table_new_implentation.tex'# Replace with your desired output file path
+# csv_path_new = folder_path + '/distance_closest_points_new.csv'
+# csv_to_latex_table(csv_path_new, latex_file_path, False)
+
+# compile_tex_to_pdf(os.path.join(MAIN_FOLDER, YEAR, folder_name, "Tex_files"), folder_name +'.tex')
+
+# ##########################################################################################
+# end_time_overall = time.time()
+# elapsed_time_overall =  end_time_overall - start_time_overall
+# print(f"Temps overall {round(elapsed_time_overall, 2)}s")
