@@ -66,7 +66,7 @@ def display_route(geometry, map_path):
     # Save the map to an HTML file
     map.save(map_path)
 
-def display_route_all_pharma(gdf, API_KEY, map_path, bool_old):
+def display_route_all_pharma(gdf, API_KEY, map_path, bool_old, offset_map):
     pharmacy_label = "Ancienne pharmacie" if bool_old else "Nouvelle pharmacie"
     # Assuming the first row is the start point
     start_point = gdf.iloc[0]
@@ -115,7 +115,7 @@ def display_route_all_pharma(gdf, API_KEY, map_path, bool_old):
     ).add_to(map)
 
     lats, lons = zip(*all_coords)
-    map.fit_bounds([[min(lats), min(lons)], [max(lats), max(lons)]])
+    map.fit_bounds([[min(lats), min(lons)], [max(lats)+offset_map, max(lons)]])
 
     url = ("D:/Pharmacy_Raph/Codes/North.png")
     FloatImage(url, bottom=85, left=90, width='50px').add_to(map)

@@ -12,8 +12,10 @@ def save_svg_to_png(html_file_path, output_png_path):
     # chrome_options.add_argument("--disable-gpu")
     chrome_options.add_argument("--window-size=1920x1080")
 
+    chrome_driver_path = 'D:/Pharmacy_Raph/chromedriver-win64/chromedriver.exe'
+
     # Setting up Chrome WebDriver
-    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
+    driver = webdriver.Chrome(service=Service(chrome_driver_path), options=chrome_options)
 
     # Load the HTML file
     driver.get("file://" + html_file_path)

@@ -10,7 +10,7 @@ def get_coord_by_pharma_id(gdf):
             # Check if there is a matching row
             if not matching_row.empty:
                 # Return the geometry
-                return matching_row.iloc[0]['geometry']
+                return matching_row.iloc[0]['geometry'], int(id_number)
             else:
                 # Return None or an appropriate response if no match is found
                 print("Lolilol, mauvais numéro d'identification")

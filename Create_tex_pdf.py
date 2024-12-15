@@ -23,7 +23,7 @@ def generate_main_latex(template_path, output_path, data_dict):
     except Exception as e:
         print(f"Error writing to output file: {e}")
 
-def csv_to_latex_table(csv_path, latex_file_path, bool_old):
+def csv_to_latex_table(csv_path, latex_file_path, bool_old, id_old_pharmacy):
     # Read the CSV file
     df = pd.read_csv(csv_path)
 
@@ -48,6 +48,8 @@ def csv_to_latex_table(csv_path, latex_file_path, bool_old):
         # Write the data rows
         for index, row in df.iterrows():
             if index == 0:
+                continue
+            if row[1] == id_old_pharmacy:
                 continue
             f.write(f"{row[0]+1} & {row[2]} & \\begin{{tabular}}[c]{{@{{}}l@{{}}}}{row[3]}\\\\ {row[4]} {row[5]} \\end{{tabular}} & {round(row[10],2)} \\\\\n")
             f.write('\\hline\n')
