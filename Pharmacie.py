@@ -87,9 +87,20 @@ else:
 closest_points_new.to_csv(os.path.join(folder_path, 'distance_closest_points_new.csv'))
 
 ############################################################################################
-# """Polygon drawing"""
-# x_percentage = 0.3
-# nb_vertex = 7
+"""Polygon drawing"""
+
+"""
+Le 25% (par rapport à l'ancienne) est une alternative si tu dépasses les 100m par la rue. 
+Tu regardes si tu es dans le polygone pour savoir si tu ne déplaces pas trop loin de l'ancienne 
+puisque la  nouvelle doit etre dans le polygone => INTERSECTION PERPENDICULAIRES
+
+
+50% (par rapport à la nouvelle) pour vérifier si le déménagement ne se fait pas dans une zone où 
+tu deservirait trop ou trop peu de personnes en fonction des habitants => PAR LA RUE
+"""
+
+# x_percentage = 0.5
+# nb_vertex = 6
 
 # reference_point = closest_points_new.geometry.iloc[0]
 # print(reference_point)
@@ -102,7 +113,16 @@ closest_points_new.to_csv(os.path.join(folder_path, 'distance_closest_points_new
 
 # plot_polygon(closest_points_new, reference_point, zone_protection, x_percentage, nb_vertex)
 
-# find_points_in_polygon(ADRESS_CSV, zone_protection, 'adresses_in_polygon.csv')
+from shapely.geometry import Polygon
+
+zone_protection_coords = ((4.163916652965266, 50.50063775754039),
+                        (4.200548174157409, 50.52985640649645),
+                        (4.2327604863458905, 50.51697066501977),
+                        (4.215751437348698, 50.50444686231263),
+                        (4.201815280840193, 50.50213065166054))
+zone_protection = Polygon(zone_protection_coords)
+
+find_points_in_polygon(ADRESS_CSV, zone_protection, 'adresses_in_polygon.csv')
 
 ##########################################################################################
 html_path = os.path.join(MAIN_FOLDER, YEAR, folder_name, HTML_NEW_PHARMACY)
@@ -123,15 +143,17 @@ if route_geometry:
 else:
     print("Failed to retrieve route")
 
-save_svg_to_png(html_path, new_implentation_png)
+# Create converter once at the beginning
+converter = HTMLToPNGConverter()
+
+# Your original code with optimized calls:
+converter.convert_single(html_path, new_implentation_png)
 
 display_route_all_pharma(closest_points_old, API_KEY, html_path_all_old, 1, map_offset)
+converter.convert_single(html_path_all_old, all_itinerary_old_png)
 
-save_svg_to_png(html_path_all_old, all_itinerary_old_png)
-
-display_route_all_pharma(closest_points_new, API_KEY, html_path_all_new, 0, map_offset)
-
-save_svg_to_png(html_path_all_new, all_itinerary_new_png)
+display_route_all_pharma(closest_points_new, API_KEY, html_path_all_new, 0, map_offset, 'polygon.shp')
+converter.convert_single(html_path_all_new, all_itinerary_new_png)
 
 #########################################################################################
 """Creates the .tex files"""

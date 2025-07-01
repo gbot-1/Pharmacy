@@ -66,7 +66,7 @@ def display_route(geometry, map_path):
     # Save the map to an HTML file
     map.save(map_path)
 
-def display_route_all_pharma(gdf, API_KEY, map_path, bool_old, offset_map):
+def display_route_all_pharma(gdf, API_KEY, map_path, bool_old, offset_map, shp_path=None):
     pharmacy_label = "Ancienne pharmacie" if bool_old else "Nouvelle pharmacie"
     # Assuming the first row is the start point
     start_point = gdf.iloc[0]
@@ -79,6 +79,18 @@ def display_route_all_pharma(gdf, API_KEY, map_path, bool_old, offset_map):
 
     # Create an empty map without a specified center
     map = folium.Map(zoom_control=False, control_scale=True)
+
+    if shp_path:
+        polygon_gdf = gpd.read_file(shp_path)
+        folium.GeoJson(
+            polygon_gdf,
+            style_function=lambda x: {
+                'fillColor': 'none',
+                'color': 'blue',
+                'weight': 2,
+                'dashArray': '5, 5'
+            }
+        ).add_to(map)
 
     # Loop through gdf starting from the second row to plot each route
     # for index, row in gdf.iloc[1:10].iterrows():
