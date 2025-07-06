@@ -51,7 +51,7 @@ def csv_to_latex_table(csv_path, latex_file_path, bool_old, id_old_pharmacy):
                 continue
             if row[1] == id_old_pharmacy:
                 continue
-            f.write(f"{row[0]+1} & {row[2]} & \\begin{{tabular}}[c]{{@{{}}l@{{}}}}{row[3]}\\\\ {row[4]} {row[5]} \\end{{tabular}} & {round(row[10],2)} \\\\\n")
+            f.write(f"{row[0]} & {row[2]} & \\begin{{tabular}}[c]{{@{{}}l@{{}}}}{row[3]}\\\\ {row[4]} {row[5]} \\end{{tabular}} & {round(row[10],2)} \\\\\n")
             f.write('\\hline\n')
 
         # End the table environment

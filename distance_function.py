@@ -9,10 +9,11 @@ def get_planar_distance(gdf_init,geometry,nb_point):
     gdf = gdf_init.copy(deep=True)
     gdf['distance'] = gdf.geometry.distance(geometry)
     closest_points = gdf.sort_values(by='distance').head(nb_point)
+    closest_points = closest_points.reset_index(drop=True)
 
     closest_points.crs = "EPSG:3812"
-    closest_points = closest_points.to_crs("EPSG:4326") #convert to WGS 84 - needed for road distance
-    # closest_points.to_csv('closest_WGS.csv')
+    # closest_points = closest_points.to_crs("EPSG:4326") #convert to WGS 84 - needed for road distance
+    # # closest_points.to_csv('closest_WGS.csv')
     
     return closest_points
 
@@ -46,7 +47,8 @@ def get_road_distance_and_geometry(coord1, coord2, API_KEY, cache):
     
     # Body for the POST request, including the start and end coordinates
     body = {
-        "coordinates": [coord1, coord2]
+        "coordinates": [coord1, coord2],
+        "preference": 'shortest'
     }
         
     # Sending a POST request to OpenRouteService API

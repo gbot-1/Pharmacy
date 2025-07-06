@@ -1,6 +1,7 @@
 # import random
 # import matplotlib.pyplot as plt
 # import numpy as np
+from shapely import MultiPoint, Point
 
 # def calculate_slope(point1, point2):
 #     """Calculate the slope between two points."""
@@ -131,18 +132,3 @@
 #     plt.axvline(0, color='black',linewidth=0.5)
 #     plt.legend()
 #     plt.show()
-
-
-from shapely.geometry import Polygon
-from polygon_drawing import find_points_in_polygon
-
-ADRESS_CSV = 'D:/Pharmacy_Raph/adresses.csv'
-
-zone_protection_coords = ((4.163916652965266, 50.50063775754039),
-                        (4.200548174157409, 50.52985640649645),
-                        (4.2327604863458905, 50.51697066501977),
-                        (4.215751437348698, 50.50444686231263),
-                        (4.201815280840193, 50.50213065166054))
-zone_protection = Polygon(zone_protection_coords)
-
-find_points_in_polygon(ADRESS_CSV, zone_protection, 'adresses_in_polygon.csv')

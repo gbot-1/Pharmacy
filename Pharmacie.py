@@ -1,5 +1,6 @@
 """TO DO"""
 """
+POLYGONE
 Only one call of the API instead of 2. => stored geometry 
 """
 ##########################################################################################
@@ -27,6 +28,8 @@ MAP_ALL_PHARMACY_OLD = 'map_all_pharmacy_old.png'
 MAP_ALL_PHARMACY_NEW = 'map_all_pharmacy_new.png'
 HTML_ALL_PHARMACY_OLD = 'all_itineraries_old.html'
 HTML_ALL_PHARMACY_NEW = 'all_itineraries_new.html'
+POLYGON_50_PERCENT = 'polygon_50_percent.shp'
+POLYGON_25_PERCENT = 'polygon_25_percent.shp'
 FOLDER_NAME_TEX = 'Tex_files'
 NB_POINT = 10
 YEAR = str(datetime.datetime.now().year)
@@ -59,18 +62,22 @@ new_coordinates = coordinate_new_implantation()
 New_adresse = adress_new_implantation()
 ref_plan = date_and_ref()
 
+quit()
+
+closest_points_old = selection_pharmacies(gdf, coord_init, NB_POINT, new_coordinates)
+closest_points_old = closest_points_old.to_crs("EPSG:4326") #convert to WGS 84 - needed for road distance
+
 #small manipulation to have the new coordinates into the appropriate format
 temp_gdf = gpd.GeoDataFrame([1], geometry=[new_coordinates], crs="EPSG:3812").geometry.iloc[0]
 x_y_new_implentation = (temp_gdf.x, temp_gdf.y)
 
 # Calculate closest points
-closest_points_old = road_distance(get_planar_distance(gdf, coord_init, NB_POINT), coord_init, API_KEY)
+closest_points_old = road_distance(closest_points_old, coord_init, API_KEY)
 closest_points_old = closest_points_old.sort_values(by='road_distance')
-original_order = closest_points_old.index
 closest_points_old = closest_points_old.reset_index(drop=True)
 
 # Create folders
-folder_name = ref_plan[1] + "_" + str(closest_points_old.iloc[1]['Nom'])
+folder_name = ref_plan[1] + "_" + str(closest_points_old.iloc[0]['Nom'])
 folder_name = folder_name.replace(" ", "_").replace("/", "_")  # Replace spaces and slashes
 folder_path = os.path.join(MAIN_FOLDER, YEAR, folder_name)
 create_folder(folder_path)
@@ -78,18 +85,21 @@ create_folder(folder_path)
 closest_points_old.to_csv(os.path.join(folder_path, 'distance_closest_points_old.csv'))
 
 """Create CSV for new implentation"""
-gdf_temp = create_gdf_new_implentation(gdf, closest_points_old, New_adresse, new_coordinates)
-closest_points_new = road_distance(get_planar_distance(gdf_temp, new_coordinates, NB_POINT), new_coordinates, API_KEY)
-if set(original_order) == set(closest_points_new.index):
-    closest_points_new = closest_points_new.reindex(original_order).reset_index(drop=True)
-else:
-    closest_points_new = closest_points_new.reset_index(drop=True)
+gdf_temp = create_gdf_new_implentation(closest_points_old, New_adresse, new_coordinates)
+closest_points_new = get_planar_distance(gdf_temp, new_coordinates, NB_POINT)
+closest_points_new = closest_points_new.to_crs("EPSG:4326")
+closest_points_new = road_distance(closest_points_new, new_coordinates, API_KEY)
+# Sorting the second dataframe using this mapping
+order_mapping = {auth_num: idx for idx, auth_num in enumerate(closest_points_old["Numéro d'autorisation"])}
+closest_points_new = closest_points_new.copy()
+closest_points_new['sort_key'] = closest_points_new["Numéro d'autorisation"].map(order_mapping)
+closest_points_new = closest_points_new.sort_values('sort_key').drop('sort_key', axis=1)
+
 closest_points_new.to_csv(os.path.join(folder_path, 'distance_closest_points_new.csv'))
 
 ############################################################################################
-"""Polygon drawing"""
-
-"""
+"""Polygon drawing
+###################################################
 Le 25% (par rapport à l'ancienne) est une alternative si tu dépasses les 100m par la rue. 
 Tu regardes si tu es dans le polygone pour savoir si tu ne déplaces pas trop loin de l'ancienne 
 puisque la  nouvelle doit etre dans le polygone => INTERSECTION PERPENDICULAIRES
@@ -99,30 +109,24 @@ puisque la  nouvelle doit etre dans le polygone => INTERSECTION PERPENDICULAIRES
 tu deservirait trop ou trop peu de personnes en fonction des habitants => PAR LA RUE
 """
 
-# x_percentage = 0.5
-# nb_vertex = 6
+polygon_midistance_shp = os.path.join(MAIN_FOLDER, YEAR, folder_name, POLYGON_50_PERCENT)
+polygon_quarter_distance_shp = os.path.join(MAIN_FOLDER, YEAR, folder_name, POLYGON_25_PERCENT)
 
-# reference_point = closest_points_new.geometry.iloc[0]
-# print(reference_point)
+protection_zone_midistance = polygon_mid_distance(closest_points_new, polygon_midistance_shp)
 
-# gdf_test = closest_points_new.iloc[2:]
-# coords = np.array([[point.y, point.x] for point in gdf_test['midpoint']])
-# zone_protection = create_polygon(reference_point, coords)
+find_points_in_polygon(ADRESS_CSV, protection_zone_midistance, 'adresses_in_polygon.csv')
 
-# # zone_protection = generate_polygon(closest_points_new, reference_point, x_percentage, nb_vertex)
+# intersections, perpendicular_lines = find_perpendicular_intersections_ordered(gdf)
+protection_zone_quarter_distance = create_polygon_from_intersections(closest_points_old, polygon_quarter_distance_shp)
+is_in_polygon = protection_zone_quarter_distance.contains(new_coordinates)
+if is_in_polygon:
+    print("La nouvelle pharmacie se trouve dans le polygone")
+else:
+    print("mdr le changement ne peut pas avoir lieu, la pharma est hors du polygone")
 
-# plot_polygon(closest_points_new, reference_point, zone_protection, x_percentage, nb_vertex)
+quit()
 
-from shapely.geometry import Polygon
 
-zone_protection_coords = ((4.163916652965266, 50.50063775754039),
-                        (4.200548174157409, 50.52985640649645),
-                        (4.2327604863458905, 50.51697066501977),
-                        (4.215751437348698, 50.50444686231263),
-                        (4.201815280840193, 50.50213065166054))
-zone_protection = Polygon(zone_protection_coords)
-
-find_points_in_polygon(ADRESS_CSV, zone_protection, 'adresses_in_polygon.csv')
 
 ##########################################################################################
 html_path = os.path.join(MAIN_FOLDER, YEAR, folder_name, HTML_NEW_PHARMACY)
@@ -152,7 +156,7 @@ converter.convert_single(html_path, new_implentation_png)
 display_route_all_pharma(closest_points_old, API_KEY, html_path_all_old, 1, map_offset)
 converter.convert_single(html_path_all_old, all_itinerary_old_png)
 
-display_route_all_pharma(closest_points_new, API_KEY, html_path_all_new, 0, map_offset, 'polygon.shp')
+display_route_all_pharma(closest_points_new, API_KEY, html_path_all_new, 0, map_offset, polygon_quarter_distance_shp)
 converter.convert_single(html_path_all_new, all_itinerary_new_png)
 
 #########################################################################################

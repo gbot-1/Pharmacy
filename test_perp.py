@@ -1,53 +1,9 @@
 import geopandas as gpd
-import pandas as pd
 import numpy as np
-import re
-from shapely.geometry import Point, Polygon, LineString
+from shapely.geometry import Point, LineString, Polygon
+from shapely.ops import nearest_points
 import matplotlib.pyplot as plt
-
-# Function to sort points in clockwise order
-def angle_from_reference_point(point, reference_point):
-    return np.arctan2(point[1] - reference_point.y, point[0] - reference_point.x)
-
-def alphanum_key(s):
-    s = str(s)
-    return tuple(int(text) if text.isdigit() else text for text in re.split('([0-9]+)', s))
-
-def find_points_in_polygon(csv_file, polygon, output_file):
-    points_df = pd.read_csv(csv_file)
-    # Assuming the CSV has 'latitude' and 'longitude' columns
-    points_gdf = gpd.GeoDataFrame(points_df, geometry=gpd.points_from_xy(points_df.X, points_df.Y), crs="31370")
-    points_gdf = points_gdf.to_crs("EPSG:4326")
-
-    gdf_polygon = gpd.GeoDataFrame(index=[0], crs='epsg:4326', geometry=[polygon])
-
-    # Find points within the polygon
-    points_within_polygon = gpd.sjoin(points_gdf, gdf_polygon, how='inner', predicate='within')
-    # Apply the custom sort to NUMERO column
-    points_within_polygon['NUMERO_SORT_KEY'] = points_within_polygon['NUMERO'].apply(alphanum_key)
-
-    # Sort the data
-    sorted_data = points_within_polygon.sort_values(by=['CODEPOSTAL', 'RUE_NOM', 'NUMERO_SORT_KEY'])
-    # sorted_data = sorted_data.drop(columns=['X', 'Y', 'NUMERO_SORT_KEY', 'geometry', 'index_right'])
-
-    # Save the result to a new CSV file
-    sorted_data.to_csv(output_file, index=False)
-    gdf_polygon.to_file("polygon.shp", driver='ESRI Shapefile')
-
-    return points_within_polygon
-
-def polygon_mid_distance(gdf, polygon_midistance_shp):
-    gdf_test = gdf.iloc[1:]
-    coords = np.array([[point.y, point.x] for point in gdf_test['midpoint']])
-    reference_point = gdf.geometry.iloc[0]
-    sorted_coords = sorted(coords, key=lambda point: angle_from_reference_point(point, reference_point))
-    
-    protection_zone = Polygon(sorted_coords)
-
-    gdf_polygon = gpd.GeoDataFrame(index=[0], crs='epsg:4326', geometry=[protection_zone])
-    gdf_polygon.to_file(polygon_midistance_shp, driver='ESRI Shapefile')
-
-    return protection_zone
+from typing import List, Tuple
 
 def find_quarter_point(reference_point, other_point):
     """
@@ -98,7 +54,7 @@ def find_perpendicular_intersections_ordered(gdf):
     """
     # Ensure we have at least 3 points
     if len(gdf) < 3:
-        raise ValueError("Il faut mminimum 3 points pour créer un polygone")
+        raise ValueError("Need at least 3 points in the GeoDataFrame")
     
     # Get reference point (first point)
     reference_point = gdf.geometry.iloc[0]
@@ -123,7 +79,7 @@ def find_perpendicular_intersections_ordered(gdf):
             perpendicular_lines.append(perp_line)
     
     # Find intersections between adjacent perpendicular lines to create convex polygon
-    intersections = [] 
+    intersections = []
     n_lines = len(perpendicular_lines)
     
     for i in range(n_lines):
@@ -139,13 +95,12 @@ def find_perpendicular_intersections_ordered(gdf):
     
     return intersections, perpendicular_lines
 
-def create_polygon_from_intersections(gdf, polygon_quarter_distance_shp):
-    intersections, perpendicular_lines = find_perpendicular_intersections_ordered(gdf)
+def create_polygon_from_intersections(intersections):
     """
     Create a polygon from intersection points by ordering them properly.
     """
     if len(intersections) < 3:
-        raise ValueError("Il faut minimum 3 points pour créer un polygone")
+        raise ValueError("Need at least 3 intersection points to create a polygon")
     
     # Convert to coordinates
     coords = [(point.x, point.y) for point in intersections]
@@ -160,20 +115,8 @@ def create_polygon_from_intersections(gdf, polygon_quarter_distance_shp):
         return np.arctan2(y - centroid_y, x - centroid_x)
     
     sorted_coords = sorted(coords, key=angle_from_centroid)
-
-    polygon = Polygon(sorted_coords)
-
-    convex_hull = polygon.convex_hull
-    is_convex = polygon.equals(convex_hull) or polygon.area / convex_hull.area > 0.99
-
-    if is_convex is True:
-        print(f"Aire totale du polygone : {polygon.area:.2f}")
-        print(f"Polygone convexe : {is_convex}")
-
-    gdf_polygon = gpd.GeoDataFrame(index=[0], crs='epsg:4326', geometry=[polygon])
-    gdf_polygon.to_file(polygon_quarter_distance_shp, driver='ESRI Shapefile')
     
-    return polygon
+    return Polygon(sorted_coords)
 
 def visualize_construction(gdf, intersections, perpendicular_lines, polygon=None):
     """
@@ -214,18 +157,35 @@ def visualize_construction(gdf, intersections, perpendicular_lines, polygon=None
     plt.tight_layout()
     plt.show()
 
-
-def example_usage(gdf):
+# Example usage
+def load_pharmacy_data(csv_file):
+    """
+    Load pharmacy data from CSV and create GeoDataFrame.
+    """
+    import pandas as pd
+    
+    # Read CSV
+    df = pd.read_csv(csv_file)
+    
+    # Create points from X, Y coordinates
+    points = [Point(row['X'], row['Y']) for _, row in df.iterrows()]
+    
+    # Create GeoDataFrame
+    gdf = gpd.GeoDataFrame(df, geometry=points)
+    
+    return gdf
+def example_usage():
     """
     Example showing how to use the functions with pharmacy data.
     """
+    gdf = load_pharmacy_data(r'D:\Pharmacy_Raph\2025\25-998_Pharmacie_Lejeune_Vdm\distance_closest_points_old.csv')
     try:
         # Find ordered intersections to create convex polygon
         intersections, perpendicular_lines = find_perpendicular_intersections_ordered(gdf)
         
-        print(f"{len(intersections)} points d'intersection créés pour un polygone à {len(intersections)} cotés")
+        print(f"Created {len(intersections)} intersection points for {len(intersections)}-sided convex polygon")
         
-        if len(intersections) >= 3:
+        if len(intersections) >= 0:
             # Create polygon from ordered intersections
             coords = [(point.x, point.y) for point in intersections]
             polygon = Polygon(coords)
@@ -234,8 +194,8 @@ def example_usage(gdf):
             convex_hull = polygon.convex_hull
             is_convex = polygon.equals(convex_hull) or polygon.area / convex_hull.area > 0.99
             
-            print(f"Aire totale du polygone : {polygon.area:.2f}")
-            print(f"Polygone convexe : {is_convex}")
+            print(f"Created polygon with area: {polygon.area:.2f}")
+            print(f"Is convex: {is_convex}")
             
             # Visualize
             visualize_construction(gdf, intersections, perpendicular_lines, polygon)
@@ -251,3 +211,7 @@ def example_usage(gdf):
     except Exception as e:
         print(f"Error: {e}")
         return None
+
+# Run example
+if __name__ == "__main__":
+    result_polygon = example_usage()

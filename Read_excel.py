@@ -28,23 +28,26 @@ def load_db_from_excel(filepath):
         
     return df
 
-def create_gdf_new_implentation(gdf, closest_points_old, New_adresse, new_coordinates):
+def create_gdf_new_implentation(closest_points_old, New_adresse, new_coordinates):
+    gdf = closest_points_old.copy(deep=True)
+    gdf = gdf.to_crs("EPSG:3812")
     new_row = {
-        'Numéro d\'autorisation': 999999,
+        'Numéro d\'autorisation': closest_points_old.iloc[0,0],
         'Nom': closest_points_old.iloc[0,1],
         'Adresse': New_adresse[0],  # Replace with the actual new address if available
         'Code Postal': New_adresse[1],  # Placeholder, replace with actual postal code if available
         'Commune': New_adresse[2],  # Placeholder, replace with actual commune if available
         'X': 123456.789,  # Placeholder for new X coordinate, replace as needed
         'Y': 987654.321,  # Placeholder for new Y coordinate, replace as needed
-        'geometry': new_coordinates # Placeholder, replace with actual geometry if available
+        'geometry': new_coordinates, # Placeholder, replace with actual geometry if available
+        'distance': 0,
+        'road_distance': 0,
+        'midpoint': None
     }
     # Convert the new row dictionary to a DataFrame
-    new_row_df = pd.DataFrame([new_row])
+    new_row_df = gpd.GeoDataFrame([new_row], geometry = 'geometry')
 
     # Append the existing DataFrame to the new row DataFrame
-    df_updated = pd.concat([new_row_df, gdf], ignore_index=True)
+    gdf.loc[0] = new_row_df.iloc[0]
 
-    df_updated = gpd.GeoDataFrame(df_updated, geometry='geometry')
-
-    return df_updated
+    return gdf

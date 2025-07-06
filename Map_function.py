@@ -17,7 +17,8 @@ def get_route(start_coords, end_coords, API_KEY):
 
     # Request body
     body = {
-        'coordinates': [start_coords, end_coords]
+        'coordinates': [start_coords, end_coords],
+        "preference": 'shortest'
     }
 
     # Make the request
@@ -45,20 +46,22 @@ def display_route(geometry, map_path):
     folium.PolyLine(geometry, color='blue').add_to(map)
 
 
-    # Calculate the bounds of the route
-    lats, lons = zip(*geometry)
-    map.fit_bounds([[min(lats), min(lons)], [max(lats), max(lons)]])
-    
     # Add markers with text for the start and end points
     folium.Marker(location=geometry[0],
-                  icon=folium.Icon(prefix='fa', icon="horse", color='cadetblue', icon_color="pink"),
-                  tooltip=folium.Tooltip("Ancienne implémentation", permanent=True, direction="bottom")
+                  icon=folium.Icon(prefix='fa', icon="plus", color='green', icon_color="white"),
+                  tooltip=folium.Tooltip("Ancienne implantation", permanent=True, direction="bottom")
                   ).add_to(map)
 
     folium.Marker(location=geometry[-1],
-                  icon=folium.Icon(color="blue", prefix='fa', icon='dog', icon_color='red'),
-                  tooltip=folium.Tooltip("Nouvelle implémentation", permanent=True, direction="bottom")
+                  icon=folium.Icon(color="green", prefix='fa', icon='plus', icon_color='white'),
+                  tooltip=folium.Tooltip("Nouvelle implantation", permanent=True, direction="bottom")
                   ).add_to(map)
+    
+    # Custom CSS to increase tooltip font size
+    style = "<style>.leaflet-tooltip { font-size: 14px; }</style>"
+
+    # Adding custom CSS to the map
+    map.get_root().html.add_child(folium.Element(style))
     
     url = ("D:/Pharmacy_Raph/Codes/North.png")
     FloatImage(url, bottom=85, left=90, width='50px').add_to(map)
@@ -92,21 +95,6 @@ def display_route_all_pharma(gdf, API_KEY, map_path, bool_old, offset_map, shp_p
             }
         ).add_to(map)
 
-    # Loop through gdf starting from the second row to plot each route
-    # for index, row in gdf.iloc[1:10].iterrows():
-    #     end_coords = [row.geometry.x, row.geometry.y]
-    #     geometry = get_route(start_coords, end_coords, API_KEY)
-
-    #     if geometry:
-    #         folium.PolyLine(geometry, color='blue').add_to(map)
-    #         # Add marker for the end point of this route
-    #         folium.Marker(
-    #             location=geometry[-1],
-    #             icon=folium.Icon(color="blue", prefix='fa', icon='dog', icon_color='red'),
-    #             tooltip=folium.Tooltip(f"{index}", permanent=True, direction="bottom")
-    #         ).add_to(map)
-        
-    #     all_coords.extend(geometry)
     with ThreadPoolExecutor(max_workers=20) as executor:
         future_to_route = {executor.submit(get_route, task[0], task[1], API_KEY): (task, index) for task, index in tasks}
         for future in future_to_route:
@@ -122,8 +110,8 @@ def display_route_all_pharma(gdf, API_KEY, map_path, bool_old, offset_map, shp_p
 
     folium.Marker(
         location=geometry[0],
-        icon=folium.Icon(prefix='fa', icon="horse", color='cadetblue', icon_color="pink"),
-        tooltip=folium.Tooltip("Ancienne \n implantation", permanent=True, direction="bottom")
+        icon=folium.Icon(prefix='fa', icon="plus", color='green', icon_color="white"),
+        tooltip=folium.Tooltip(f"{pharmacy_label}", permanent=True, direction="bottom")
     ).add_to(map)
 
     lats, lons = zip(*all_coords)
