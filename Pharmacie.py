@@ -1,7 +1,37 @@
 """TO DO"""
 """
 POLYGONE
+Si carte trop petite, pas mettre itinéraire mais truc différent sur page de garde 
+meilleur zoom cartes + polygone visible 100% 
+test is_in_polygon
+path adresse_in_polygon
 Only one call of the API instead of 2. => stored geometry 
+
+Rapport transfert simple
+if < 100 m: 
+    rapport classique
+else:
+    if is_in_25%:
+        rapport classique
+    else:
+        polygone 50% w/ liste habitations
+
+Transfert + Fusion
+Rapport classique
+
+Fusion
+if ( >= 1 pharma in dist<1000):
+    tableau distance par rapport nouvelle
+    plan nouvelle adresse
+    plan 2 adresses
+else:
+    tableau distance par rapport nouvelle
+    plan nouvelle adresse
+    plan 2 adresses
+    polygone 50% + adresse_in_polygone.csv
+
+
+
 """
 ##########################################################################################
 import time
@@ -28,15 +58,16 @@ MAP_ALL_PHARMACY_OLD = 'map_all_pharmacy_old.png'
 MAP_ALL_PHARMACY_NEW = 'map_all_pharmacy_new.png'
 HTML_ALL_PHARMACY_OLD = 'all_itineraries_old.html'
 HTML_ALL_PHARMACY_NEW = 'all_itineraries_new.html'
-POLYGON_50_PERCENT = 'polygon_50_percent.shp'
-POLYGON_25_PERCENT = 'polygon_25_percent.shp'
+POLYGON_50_PERCENT = 'polygon_50_percent'
+POLYGON_25_PERCENT = 'polygon_25_percent'
+EXCEL_HOUSES = 'adresses_in_polygon.csv'
+CADASTRAL_MAP = 'D:/Pharmacy_Raph/QGIS/Cadastre/Bpn_CaPa_WAL.shp'
 FOLDER_NAME_TEX = 'Tex_files'
 NB_POINT = 10
 YEAR = str(datetime.datetime.now().year)
 API_KEY = '5b3ce3597851110001cf6248cca3afa1547a460ab12d2624d73dbe4e'
 
-map_offset = 0
-
+map_offset = 0.001
 
 def create_folder(folder_path):
     if not os.path.exists(folder_path):
@@ -54,15 +85,13 @@ def point_to_list(point_coord):
 df = load_db_from_excel(FILEPATH)
 gdf = gpd.GeoDataFrame(df, geometry=gpd.points_from_xy(df.X, df.Y))
 
-# report_type = project_type()
+report_type = project_type()
 
 # Get input data
 coord_init, id_number = get_coord_by_pharma_id(gdf)
 new_coordinates = coordinate_new_implantation()
 New_adresse = adress_new_implantation()
 ref_plan = date_and_ref()
-
-quit()
 
 closest_points_old = selection_pharmacies(gdf, coord_init, NB_POINT, new_coordinates)
 closest_points_old = closest_points_old.to_crs("EPSG:4326") #convert to WGS 84 - needed for road distance
@@ -97,36 +126,24 @@ closest_points_new = closest_points_new.sort_values('sort_key').drop('sort_key',
 
 closest_points_new.to_csv(os.path.join(folder_path, 'distance_closest_points_new.csv'))
 
+distance_old_new = distance_fly_old_new_implantation(coord_init, new_coordinates)
+if distance_old_new <= 100:
+    near_transfert = True
+else:
+    near_transfert = False
+
 ############################################################################################
-"""Polygon drawing
-###################################################
-Le 25% (par rapport à l'ancienne) est une alternative si tu dépasses les 100m par la rue. 
-Tu regardes si tu es dans le polygone pour savoir si tu ne déplaces pas trop loin de l'ancienne 
-puisque la  nouvelle doit etre dans le polygone => INTERSECTION PERPENDICULAIRES
-
-
-50% (par rapport à la nouvelle) pour vérifier si le déménagement ne se fait pas dans une zone où 
-tu deservirait trop ou trop peu de personnes en fonction des habitants => PAR LA RUE
-"""
-
 polygon_midistance_shp = os.path.join(MAIN_FOLDER, YEAR, folder_name, POLYGON_50_PERCENT)
 polygon_quarter_distance_shp = os.path.join(MAIN_FOLDER, YEAR, folder_name, POLYGON_25_PERCENT)
 
-protection_zone_midistance = polygon_mid_distance(closest_points_new, polygon_midistance_shp)
+protection_zone_midistance = polygon_mid_distance(closest_points_new, polygon_midistance_shp, CADASTRAL_MAP)
+adresse_polygon = os.path.join(MAIN_FOLDER, YEAR, folder_name, EXCEL_HOUSES)
 
-find_points_in_polygon(ADRESS_CSV, protection_zone_midistance, 'adresses_in_polygon.csv')
+find_points_in_polygon(ADRESS_CSV, protection_zone_midistance, adresse_polygon)
 
 # intersections, perpendicular_lines = find_perpendicular_intersections_ordered(gdf)
 protection_zone_quarter_distance = create_polygon_from_intersections(closest_points_old, polygon_quarter_distance_shp)
 is_in_polygon = protection_zone_quarter_distance.contains(new_coordinates)
-if is_in_polygon:
-    print("La nouvelle pharmacie se trouve dans le polygone")
-else:
-    print("mdr le changement ne peut pas avoir lieu, la pharma est hors du polygone")
-
-quit()
-
-
 
 ##########################################################################################
 html_path = os.path.join(MAIN_FOLDER, YEAR, folder_name, HTML_NEW_PHARMACY)
@@ -143,7 +160,8 @@ route_geometry = get_route(start_coords, end_coords, API_KEY)
 
 # Display the route
 if route_geometry:
-    display_route(route_geometry, html_path)
+    padding = distance_old_new*1e-6 
+    display_route(route_geometry, html_path, padding)
 else:
     print("Failed to retrieve route")
 
@@ -153,10 +171,28 @@ converter = HTMLToPNGConverter()
 # Your original code with optimized calls:
 converter.convert_single(html_path, new_implentation_png)
 
-display_route_all_pharma(closest_points_old, API_KEY, html_path_all_old, 1, map_offset)
+if report_type == 1:
+    if near_transfert or is_in_polygon:
+        polygon_midistance = None
+        polygon_quarter = None
+    else:
+        polygon_midistance = polygon_midistance_shp + '.shp'
+        polygon_quarter =  polygon_quarter_distance_shp + '.shp'
+elif report_type == 2:
+    polygon_midistance = None
+    polygon_quarter = None 
+elif report_type == 3:
+    if closest_points_new.iloc[1]['distance'] < 1000:
+        polygon_midistance = None
+        polygon_quarter = None
+    else:
+        polygon_midistance = polygon_midistance_shp + '.shp'
+        polygon_quarter =  polygon_quarter_distance_shp + '.shp'
+
+display_route_all_pharma(closest_points_old, API_KEY, html_path_all_old, 1, map_offset, polygon_midistance)
 converter.convert_single(html_path_all_old, all_itinerary_old_png)
 
-display_route_all_pharma(closest_points_new, API_KEY, html_path_all_new, 0, map_offset, polygon_quarter_distance_shp)
+display_route_all_pharma(closest_points_new, API_KEY, html_path_all_new, 0, map_offset, polygon_quarter)
 converter.convert_single(html_path_all_new, all_itinerary_new_png)
 
 #########################################################################################
@@ -178,7 +214,7 @@ tex_dictionary = {
     'Date_plan' : ref_plan[0],
     'Ref_dossier' : ref_plan[1],
     'Distance_road': str(get_road_distance_and_geometry(point_to_list(coord_init), point_to_list(new_coordinates), API_KEY, cache)[0]),
-    'Distance_fly' : str(round(distance_fly_old_new_implantation(coord_init, new_coordinates),2)),
+    'Distance_fly' : str(round(distance_old_new,2)),
     'Map_new_implentation' : new_implentation_png.replace('\\', '/'),
     'Map_all_itinerary_old' : all_itinerary_old_png.replace('\\','/'),
     'Map_all_itinerary_new' : all_itinerary_new_png.replace('\\','/')

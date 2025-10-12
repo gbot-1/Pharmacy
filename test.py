@@ -1,134 +1,69 @@
-# import random
-# import matplotlib.pyplot as plt
-# import numpy as np
-from shapely import MultiPoint, Point
+import geopandas as gpd
+from shapely.geometry import Polygon
+import matplotlib.pyplot as plt
 
-# def calculate_slope(point1, point2):
-#     """Calculate the slope between two points."""
-#     if point2[0] - point1[0] == 0:  # Avoid division by zero for vertical lines
-#         return None  # Slope is undefined (vertical line)
-#     return (point2[1] - point1[1]) / (point2[0] - point1[0])
+# Read your polygon
+polygon_gdf = gpd.read_file(r'D:\Pharmacy_Raph\2025\25-000_Leriche_Benedicte\polygon_50_percent.shp')
+my_polygon = polygon_gdf.geometry[0]  # Get the Shapely polygon
 
-# def find_perpendicular_slope(slope):
-#     """Find the slope of the perpendicular line."""
-#     if slope is None:  # Vertical line, perpendicular is horizontal (slope=0)
-#         return 0
-#     if slope == 0:  # Horizontal line, perpendicular is vertical (undefined slope)
-#         return None
-#     return -1 / slope
+print(my_polygon)
 
-# def calculate_perpendicular_line(center, surrounding, distance_percent=0.25):
-#     """Calculate and plot the perpendicular line through the midpoint."""
-#     midpoint = [(center[0] + distance_percent * (surrounding[0] - center[0])),
-#                 (center[1] + distance_percent * (surrounding[1] - center[1]))]
-    
-#     slope = calculate_slope(center, surrounding)
-#     perp_slope = find_perpendicular_slope(slope)
-    
-#     if perp_slope is None:
-#         # Perpendicular is a vertical line (x = constant)
-#         x_values = np.full(100, midpoint[0])
-#         y_values = np.linspace(midpoint[1] - 10, midpoint[1] + 10, 100)
-#     else:
-#         # Perpendicular line: y - y1 = m(x - x1)
-#         x_values = np.linspace(midpoint[0] - 10, midpoint[0] + 10, 100)
-#         y_values = perp_slope * (x_values - midpoint[0]) + midpoint[1]
-    
-#     return midpoint, perp_slope, midpoint[1] - perp_slope * midpoint[0] if perp_slope is not None else midpoint[0]
+print(f"Polygon bounds: {my_polygon.bounds}")
+print(f"Polygon CRS: {polygon_gdf.crs}")
 
-# def find_intersection(m1, b1, m2, b2):
-#     """Find the intersection point of two lines given by their slope and intercept."""
-#     if m1 == m2:
-#         # If the slopes are equal, the lines are parallel and there is no intersection
-#         return None
-    
-#     if m1 is None:  # Line 1 is vertical (x = constant)
-#         x_int = b1  # x coordinate is the constant value
-#         y_int = m2 * x_int + b2  # y = m2 * x + b2 for the second line
-#     elif m2 is None:  # Line 2 is vertical
-#         x_int = b2  # x coordinate is the constant value
-#         y_int = m1 * x_int + b1  # y = m1 * x + b1 for the first line
-#     else:
-#         # Solve for x: m1*x + b1 = m2*x + b2
-#         x_int = (b2 - b1) / (m1 - m2)
-#         y_int = m1 * x_int + b1  # Substitute x into one of the line equations
-    
-#     return (x_int, y_int)
+# Load ONLY the parcels that intersect your polygon's bounding box
+# This is MUCH faster than loading the entire 900MB file
+parcels = gpd.read_file(r'D:\Pharmacy_Raph\QGIS\Cadastre\Bpn_CaPa_WAL.shp', 
+                        bbox=my_polygon.bounds,  # Only load relevant area
+                        ignore_geometry=False,
+                        include_fields=[])  # Skip attribute data for speed
 
-# # Example usage
-# center = [0, 0]
-# surrounding_points = [[random.uniform(-10, 10), random.uniform(-10, 10)] for _ in range(5)]
-# perpendicular_lines = []
-# intersection_points = []
+print(f"Loaded {len(parcels)} parcels (instead of all)")
 
-# # Plotting
-# plt.figure(figsize=(8, 8))
-# for surrounding in surrounding_points:
-#     # Plot the line connecting center and surrounding point
-#     plt.plot([center[0], surrounding[0]], [center[1], surrounding[1]], 'b--')
+# Ensure same CRS
+if parcels.crs != polygon_gdf.crs:
+    parcels = parcels.to_crs(polygon_gdf.crs)
 
-#     # Calculate and plot the perpendicular line
-#     midpoint, perp_slope, perp_intercept = calculate_perpendicular_line(center, surrounding)
-#     plt.plot(midpoint[0], midpoint[1], 'ro')  # Plot the midpoint
-    
-#     # Store the line equation (slope and intercept) for later intersection calculation
-#     perpendicular_lines.append((perp_slope, perp_intercept))
-    
-#     # Generate points for the perpendicular line
-#     if perp_slope is None:
-#         x_perp = np.full(100, perp_intercept)
-#         y_perp = np.linspace(midpoint[1] - 10, midpoint[1] + 10, 100)
-#     else:
-#         x_perp = np.linspace(midpoint[0] - 10, midpoint[0] + 10, 100)
-#         y_perp = perp_slope * (x_perp - midpoint[0]) + midpoint[1]
-    
-#     plt.plot(x_perp, y_perp, 'g')  # Plot the perpendicular line
+# # Clip/fit your polygon to the parcel boundaries
+# fitted_gdf = gpd.overlay(parcels,polygon_gdf, how='intersection')
 
-# # Now calculate and plot intersections between each pair of perpendicular lines
-# intersection_counter = 1  # Initialize the counter for numbering intersection points
-# for i in range(len(perpendicular_lines)):
-#     for j in range(i + 1, len(perpendicular_lines)):
-#         m1, b1 = perpendicular_lines[i]
-#         m2, b2 = perpendicular_lines[j]
-#         intersection = find_intersection(m1, b1, m2, b2)
-#         if intersection:
-#             plt.plot(intersection[0], intersection[1], 'bo')  # Plot the intersection point
-#             plt.text(intersection[0], intersection[1], f'{intersection_counter}', fontsize=10, color='blue')
-#             intersection_points.append((intersection_counter, intersection))  # Store the intersection with its ID
-#             intersection_counter += 1
+# # Or if you want just the Shapely geometry:
+# # fitted_polygon = my_polygon.intersection(parcels.union_all)
 
-# plt.scatter(center[0], center[1], color='black', label="Center Point", zorder=5)
-# plt.xlim(-10, 10)
-# plt.ylim(-10, 10)
-# plt.grid(True)
-# plt.axhline(0, color='black',linewidth=0.5)
-# plt.axvline(0, color='black',linewidth=0.5)
-# plt.legend()
-# plt.show
+# # Visualize
+# fig, ax = plt.subplots(1, 2, figsize=(15, 7))
 
-# # Input the IDs of the selected intersections (in real usage, this can be input by the user)
-# selected_ids = input("Enter the IDs of the 5 intersections (comma-separated, in desired polygon order): ")
-# selected_ids = [int(x.strip()) for x in selected_ids.split(',')]
+# # Before
+# ax[0].set_title('Original Polygon')
+# parcels.plot(ax=ax[0], color='lightgray', edgecolor='black', linewidth=0.5)
+# polygon_gdf.plot(ax=ax[0], color='blue', alpha=0.5)
 
-# # Extract the corresponding coordinates of the selected intersections
-# selected_points = [point for idx, point in intersection_points if idx in selected_ids]
+# # After
+# ax[1].set_title('Fitted to Parcels')
+# parcels.plot(ax=ax[1], color='lightgray', edgecolor='black', linewidth=0.5)
+# fitted_gdf.plot(ax=ax[1], color='red', alpha=0.5)
 
-# # Check if exactly 5 points are selected
-# if len(selected_points) != 5:
-#     print("You must select exactly 5 intersection points.")
-# else:
-#     # Ensure the order of points follows the input order
-#     selected_points = np.array([point for idx in selected_ids for id_point, point in intersection_points if id_point == idx])
-    
-#     # Draw the polygon on top of the existing graph
-#     polygon = plt.Polygon(selected_points, fill=None, edgecolor='r', linewidth=2)
-#     plt.gca().add_patch(polygon)
-    
-#     # Redraw the graph with the polygon
-#     plt.xlim(-10, 10)
-#     plt.ylim(-10, 10)
-#     plt.grid(True)
-#     plt.axhline(0, color='black',linewidth=0.5)
-#     plt.axvline(0, color='black',linewidth=0.5)
-#     plt.legend()
-#     plt.show()
+# plt.tight_layout()
+# plt.show()
+
+# Select parcels that intersect (even slightly) with your polygon
+intersecting_parcels = parcels[parcels.intersects(my_polygon)]
+
+# Visualize
+fig, ax = plt.subplots(figsize=(12, 12))
+parcels.plot(ax=ax, color='lightgray', edgecolor='black', linewidth=0.3, alpha=0.5)
+intersecting_parcels.plot(ax=ax, color='red', edgecolor='black', linewidth=0.5, alpha=0.6)
+plt.title('Parcels intersecting the polygon')
+plt.show()
+
+# Get the union of all selected parcels as your fitted polygon
+fitted_polygon = intersecting_parcels.union_all()
+
+# Convert to GeoDataFrame for saving
+fitted_gdf = gpd.GeoDataFrame([{'id': 1}], geometry=[fitted_polygon], crs=parcels.crs)
+
+# Save to shapefile
+fitted_gdf.to_file('fitted_polygon.shp')
+
+print(f"Selected {len(intersecting_parcels)} parcels")
+print(f"Saved to fitted_polygon.shp")

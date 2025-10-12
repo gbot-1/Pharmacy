@@ -81,18 +81,15 @@ def project_type():
     while True:
         try: 
             print("Sélectionner le type de rapport à générer :")
-            print("1) Transfert")
-            print("2) Fusion")
-            print("3) Transfert + fusion")
+            print("1) Transfert simple")
+            print("2) Transfert + Fusion")
+            print("3) Fusion")
             userInput = int(input("Choisir le numéro correspondant : "))
 
             if userInput not in {1, 2, 3}:
                 print("\nwesh tu essaye de faire quoi\n")
             else:
-                if userInput == 3:
-                    return userInput
-                else:
-                    print("\nC'est pas encore implémenté mdrrrr sois patient bebou\n")   
+                return userInput
         except ValueError:
             print("heuuuuuuu appelle moi mdr")
 

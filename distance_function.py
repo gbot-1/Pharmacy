@@ -2,6 +2,7 @@ import requests
 import geopandas as gpd
 import numpy as np
 import polyline
+from geopy.distance import geodesic
 from shapely.geometry import Point
 from concurrent.futures import ThreadPoolExecutor
 
@@ -46,9 +47,12 @@ def get_road_distance_and_geometry(coord1, coord2, API_KEY, cache):
     }
     
     # Body for the POST request, including the start and end coordinates
+    # Find the 3 roads to reach destinations, sharing at most 20% of the optimal road
+    # and being 2x longer than the optimal road
     body = {
         "coordinates": [coord1, coord2],
-        "preference": 'shortest'
+        "preference": 'shortest', 
+        "alternative_routes":{"target_count":3,"weight_factor":2,"share_factor":0.2}
     }
         
     # Sending a POST request to OpenRouteService API
@@ -59,14 +63,18 @@ def get_road_distance_and_geometry(coord1, coord2, API_KEY, cache):
         data = response.json()
         try:
             # Accessing the distance and route geometry
-            distance = data['routes'][0]['segments'][0]['distance']
-            route_geometry = data['routes'][0]['geometry']
-            decoded_geometry = polyline.decode(route_geometry)
-            if distance < 50:
-                distance += 5
+            distance_shortest = data['routes'][0]['segments'][0]['distance']
+            decoded_geometry = []
+
+            num_routes = min(3, len(data['routes']))  # Take up to 3, but not more than available
+            for i in range(num_routes):
+                route_geometry = data['routes'][i]['geometry']
+                decoded_geometry.append(polyline.decode(route_geometry))
+            if distance_shortest < 50:
+                distance_shortest += 5
             # Store the result in the cache
-            cache[(coord1, coord2)] = (distance, decoded_geometry)
-            return distance, decoded_geometry
+            cache[(coord1, coord2)] = (distance_shortest, decoded_geometry)
+            return distance_shortest, decoded_geometry
         except (KeyError, IndexError) as e:
             # Handle missing keys or out-of-index errors
             print(f"Error accessing distance or geometry: {e}")
@@ -74,37 +82,44 @@ def get_road_distance_and_geometry(coord1, coord2, API_KEY, cache):
     else:
         return "Request failed", []
 
-def get_midpoint_by_geometry(route_geometry):
-    if not route_geometry:
+def get_midpoint_by_geometry(route_geometry_array):
+    if not route_geometry_array:
         return None
     
-    # Calculate the total distance of the route
-    total_distance = 0
-    distances = []
-    for i in range(len(route_geometry) - 1):
-        segment_distance = np.linalg.norm(np.array(route_geometry[i]) - np.array(route_geometry[i + 1]))
-        distances.append(segment_distance)
-        total_distance += segment_distance
+    midpoint_array = []
+    for i in range(len(route_geometry_array)):
+        route_geometry = route_geometry_array[i]
+        # Calculate using geodesic (great circle) distance
+        total_distance = 0
+        distances = []
+        for i in range(len(route_geometry) - 1):
+            # route_geometry points are [lat, lon]
+            segment_distance = geodesic(route_geometry[i], route_geometry[i + 1]).meters
+            distances.append(segment_distance)
+            total_distance += segment_distance
+        
+        # Find the midpoint distance
+        midpoint_distance = total_distance / 2
+        
+        # Traverse the route to find the coordinates at the midpoint distance
+        traversed_distance = 0
+        for i in range(len(route_geometry) - 1):
+            segment_distance = distances[i]
+            if traversed_distance + segment_distance >= midpoint_distance:
+                # Calculate the exact midpoint coordinates within this segment
+                remaining_distance = midpoint_distance - traversed_distance
+                ratio = remaining_distance / segment_distance
+                midpoint = [
+                    route_geometry[i][0] + ratio * (route_geometry[i + 1][0] - route_geometry[i][0]),
+                    route_geometry[i][1] + ratio * (route_geometry[i + 1][1] - route_geometry[i][1])
+                ]
+                midpoint_array.append(Point(midpoint))
+                break
+            traversed_distance += segment_distance
+        else:
+            midpoint_array.append(None)
     
-    # Find the midpoint distance
-    midpoint_distance = total_distance / 2
-    
-    # Traverse the route to find the coordinates at the midpoint distance
-    traversed_distance = 0
-    for i in range(len(route_geometry) - 1):
-        segment_distance = distances[i]
-        if traversed_distance + segment_distance >= midpoint_distance:
-            # Calculate the exact midpoint coordinates within this segment
-            remaining_distance = midpoint_distance - traversed_distance
-            ratio = remaining_distance / segment_distance
-            midpoint = [
-                route_geometry[i][0] + ratio * (route_geometry[i + 1][0] - route_geometry[i][0]),
-                route_geometry[i][1] + ratio * (route_geometry[i + 1][1] - route_geometry[i][1])
-            ]
-            return Point(midpoint)
-        traversed_distance += segment_distance
-    
-    return None
+    return midpoint_array
 
 def road_distance(gdf, coord_init, API_KEY):
     # Convert the initial coordinate to EPSG:4326 if necessary

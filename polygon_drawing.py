@@ -1,3 +1,13 @@
+"""Polygon drawing
+Le 25% (par rapport à l'ancienne) est une alternative si tu dépasses les 100m par la rue. 
+Tu regardes si tu es dans le polygone pour savoir si tu ne déplaces pas trop loin de l'ancienne 
+puisque la  nouvelle doit etre dans le polygone => INTERSECTION PERPENDICULAIRES
+
+
+50% (par rapport à la nouvelle) pour vérifier si le déménagement ne se fait pas dans une zone où 
+tu deservirait trop ou trop peu de personnes en fonction des habitants => PAR LA RUE
+"""
+
 import geopandas as gpd
 import pandas as pd
 import numpy as np
@@ -17,9 +27,9 @@ def find_points_in_polygon(csv_file, polygon, output_file):
     points_df = pd.read_csv(csv_file)
     # Assuming the CSV has 'latitude' and 'longitude' columns
     points_gdf = gpd.GeoDataFrame(points_df, geometry=gpd.points_from_xy(points_df.X, points_df.Y), crs="31370")
-    points_gdf = points_gdf.to_crs("EPSG:4326")
+    points_gdf = points_gdf.to_crs("EPSG:3812")
 
-    gdf_polygon = gpd.GeoDataFrame(index=[0], crs='epsg:4326', geometry=[polygon])
+    gdf_polygon = gpd.GeoDataFrame(index=[0], crs='epsg:3812', geometry=[polygon])
 
     # Find points within the polygon
     points_within_polygon = gpd.sjoin(points_gdf, gdf_polygon, how='inner', predicate='within')
@@ -28,26 +38,60 @@ def find_points_in_polygon(csv_file, polygon, output_file):
 
     # Sort the data
     sorted_data = points_within_polygon.sort_values(by=['CODEPOSTAL', 'RUE_NOM', 'NUMERO_SORT_KEY'])
-    # sorted_data = sorted_data.drop(columns=['X', 'Y', 'NUMERO_SORT_KEY', 'geometry', 'index_right'])
+    
+    columns_to_keep = ['X','Y','CODEPOSTAL','ZONE_ADRES','RUE_NOM','NUMERO']  # Replace with the columns you want to keep
+
+    # Keep only the specified columns
+    sorted_data = sorted_data[columns_to_keep]
+    sorted_data["NBR_HABITANTS"] = ""
 
     # Save the result to a new CSV file
-    sorted_data.to_csv(output_file, index=False)
-    gdf_polygon.to_file("polygon.shp", driver='ESRI Shapefile')
+    sorted_data.to_csv(output_file, encoding='utf-8-sig', index=False)
 
     return points_within_polygon
 
-def polygon_mid_distance(gdf, polygon_midistance_shp):
-    gdf_test = gdf.iloc[1:]
-    coords = np.array([[point.y, point.x] for point in gdf_test['midpoint']])
+def polygon_mid_distance(gdf, polygon_midistance_shp, cadastral_map):
+    gdf_truncated = gdf.iloc[1:]
+    all_points = [point for point_list in gdf_truncated['midpoint'] for point in point_list]
+    coords = np.array([[point.y, point.x] for point in all_points])
     reference_point = gdf.geometry.iloc[0]
     sorted_coords = sorted(coords, key=lambda point: angle_from_reference_point(point, reference_point))
     
     protection_zone = Polygon(sorted_coords)
 
     gdf_polygon = gpd.GeoDataFrame(index=[0], crs='epsg:4326', geometry=[protection_zone])
-    gdf_polygon.to_file(polygon_midistance_shp, driver='ESRI Shapefile')
+    gdf_polygon = gdf_polygon.to_crs('EPSG:3812')
+    gdf_polygon.to_file(polygon_midistance_shp+'.shp', driver='ESRI Shapefile')
+    gdf_polygon.to_file(polygon_midistance_shp+'.dxf', driver='DXF')
 
-    return protection_zone
+    protection_zone_fitted = fit_polygon_to_cadastral_plan(polygon_midistance_shp, cadastral_map)
+
+    return protection_zone_fitted
+
+def fit_polygon_to_cadastral_plan(polygon_path, cadastral_map):
+
+    polygon_gdf = gpd.read_file(polygon_path+'.shp')
+    polygon = polygon_gdf.geometry[0]  # Get the Shapely polygon
+
+    parcels = gpd.read_file(cadastral_map, 
+                        bbox=polygon.bounds,  # Only load relevant area
+                        ignore_geometry=False,
+                        include_fields=[])  # Skip attribute data for speed
+    
+    print(f"Loaded {len(parcels)} parcels (instead of all)")
+    
+    intersecting_parcels = parcels[parcels.intersects(polygon)]
+
+    # Get the union of all selected parcels as your fitted polygon
+    fitted_polygon = intersecting_parcels.union_all()
+
+    # Convert to GeoDataFrame for saving
+    fitted_gdf = gpd.GeoDataFrame([{'id': 1}], geometry=[fitted_polygon], crs=parcels.crs)
+    fitted_gdf = fitted_gdf.to_crs('EPSG:4326')
+    # Save to shapefile
+    fitted_gdf.to_file(polygon_path+'_fitted.shp')
+    
+    return fitted_polygon
 
 def find_quarter_point(reference_point, other_point):
     """
@@ -171,83 +215,83 @@ def create_polygon_from_intersections(gdf, polygon_quarter_distance_shp):
         print(f"Polygone convexe : {is_convex}")
 
     gdf_polygon = gpd.GeoDataFrame(index=[0], crs='epsg:4326', geometry=[polygon])
-    gdf_polygon.to_file(polygon_quarter_distance_shp, driver='ESRI Shapefile')
-    
+    gdf_polygon.to_file(polygon_quarter_distance_shp+'.shp', driver='ESRI Shapefile')
+    gdf_polygon.to_file(polygon_quarter_distance_shp+'.dxf', driver='DXF')
+
     return polygon
 
-def visualize_construction(gdf, intersections, perpendicular_lines, polygon=None):
-    """
-    Visualize the construction with highlighted intersections.
-    """
-    fig, ax = plt.subplots(1, 1, figsize=(12, 10))
+# def visualize_construction(gdf, intersections, perpendicular_lines, polygon=None):
+#     """
+#     Visualize the construction with highlighted intersections.
+#     """
+#     fig, ax = plt.subplots(1, 1, figsize=(12, 10))
     
-    # Plot original points
-    gdf.plot(ax=ax, color='red', markersize=100, alpha=0.7, label='Original Points')
+#     # Plot original points
+#     gdf.plot(ax=ax, color='red', markersize=100, alpha=0.7, label='Original Points')
     
-    # Highlight reference point
-    reference_point = gdf.geometry.iloc[0]
-    ax.plot(reference_point.x, reference_point.y, 'ro', markersize=15, label='Reference Point (reference_point)')
+#     # Highlight reference point
+#     reference_point = gdf.geometry.iloc[0]
+#     ax.plot(reference_point.x, reference_point.y, 'ro', markersize=15, label='Reference Point (reference_point)')
     
-    # Plot intersections with yellow circles
-    for intersection in intersections:
-        circle = plt.Circle((intersection.x, intersection.y), radius=0.5, 
-                          color='yellow', alpha=0.8, linewidth=2, fill=False)
-        ax.add_patch(circle)
-    ax.plot([], [], 'o', color='yellow', markersize=10, alpha=0.8, 
-            markerfacecolor='none', markeredgewidth=2, label='Intersections')
+#     # Plot intersections with yellow circles
+#     for intersection in intersections:
+#         circle = plt.Circle((intersection.x, intersection.y), radius=0.5, 
+#                           color='yellow', alpha=0.8, linewidth=2, fill=False)
+#         ax.add_patch(circle)
+#     ax.plot([], [], 'o', color='yellow', markersize=10, alpha=0.8, 
+#             markerfacecolor='none', markeredgewidth=2, label='Intersections')
     
-    for line in perpendicular_lines:
-        x_coords, y_coords = line.xy
-        ax.plot(x_coords, y_coords, 'b-', alpha=0.5, linewidth=1)
-    ax.plot([], [], 'b-', alpha=0.5, linewidth=1, label='Perpendicular Lines')
+#     for line in perpendicular_lines:
+#         x_coords, y_coords = line.xy
+#         ax.plot(x_coords, y_coords, 'b-', alpha=0.5, linewidth=1)
+#     ax.plot([], [], 'b-', alpha=0.5, linewidth=1, label='Perpendicular Lines')
     
-    # Plot polygon if provided
-    if polygon is not None:
-        x_coords, y_coords = polygon.exterior.xy
-        ax.plot(x_coords, y_coords, 'k-', linewidth=2, alpha=0.8, label='Resulting Polygon')
-        ax.fill(x_coords, y_coords, alpha=0.2, color='lightblue')
+#     # Plot polygon if provided
+#     if polygon is not None:
+#         x_coords, y_coords = polygon.exterior.xy
+#         ax.plot(x_coords, y_coords, 'k-', linewidth=2, alpha=0.8, label='Resulting Polygon')
+#         ax.fill(x_coords, y_coords, alpha=0.2, color='lightblue')
     
-    ax.set_aspect('equal')
-    ax.grid(True, alpha=0.3)
-    ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
-    ax.set_title('Polygon Construction with Ordered Intersections')
-    plt.tight_layout()
-    plt.show()
+#     ax.set_aspect('equal')
+#     ax.grid(True, alpha=0.3)
+#     ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+#     ax.set_title('Polygon Construction with Ordered Intersections')
+#     plt.tight_layout()
+#     plt.show()
 
-
-def example_usage(gdf):
-    """
-    Example showing how to use the functions with pharmacy data.
-    """
-    try:
-        # Find ordered intersections to create convex polygon
-        intersections, perpendicular_lines = find_perpendicular_intersections_ordered(gdf)
+# def example_usage(gdf):
+#     """
+#     Example showing how to use the functions with pharmacy data.
+#     """
+#     try:
+#         # Find ordered intersections to create convex polygon
+#         intersections, perpendicular_lines = find_perpendicular_intersections_ordered(gdf)
         
-        print(f"{len(intersections)} points d'intersection créés pour un polygone à {len(intersections)} cotés")
+#         print(f"{len(intersections)} points d'intersection créés pour un polygone à {len(intersections)} cotés")
         
-        if len(intersections) >= 3:
-            # Create polygon from ordered intersections
-            coords = [(point.x, point.y) for point in intersections]
-            polygon = Polygon(coords)
+#         if len(intersections) >= 3:
+#             # Create polygon from ordered intersections
+#             coords = [(point.x, point.y) for point in intersections]
+#             polygon = Polygon(coords)
             
-            # Verify if polygon is convex
-            convex_hull = polygon.convex_hull
-            is_convex = polygon.equals(convex_hull) or polygon.area / convex_hull.area > 0.99
+#             # Verify if polygon is convex
+#             convex_hull = polygon.convex_hull
+#             is_convex = polygon.equals(convex_hull) or polygon.area / convex_hull.area > 0.99
             
-            print(f"Aire totale du polygone : {polygon.area:.2f}")
-            print(f"Polygone convexe : {is_convex}")
+#             print(f"Aire totale du polygone : {polygon.area:.2f}")
+#             print(f"Polygone convexe : {is_convex}")
             
-            # Visualize
-            visualize_construction(gdf, intersections, perpendicular_lines, polygon)
+#             # Visualize
+#             visualize_construction(gdf, intersections, perpendicular_lines, polygon)
             
-            gdf_polygon = gpd.GeoDataFrame(index=[0], crs='epsg:4326', geometry=[polygon])
-            gdf_polygon.to_file("polygon_25_perc.shp", driver='ESRI Shapefile')
+#             gdf_polygon = gpd.GeoDataFrame(index=[0], crs='epsg:4326', geometry=[polygon])
+#             gdf_polygon.to_file("polygon_25_perc.shp", driver='ESRI Shapefile')
 
-            return polygon
-        else:
-            print("Not enough intersections to create a polygon")
-            return None
+#             return polygon
+#         else:
+#             print("Not enough intersections to create a polygon")
+#             return None
             
-    except Exception as e:
-        print(f"Error: {e}")
-        return None
+#     except Exception as e:
+#         print(f"Error: {e}")
+#         return None
