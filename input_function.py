@@ -60,7 +60,7 @@ def date_and_ref():
     while True:
         try:
             # Prompt the user for input
-            user_input = input("Date (si différente d'aujourd'hui) et reférérence du dossier (légende du plan) dans le format suivant 'DD/MM/YYYY, 24.XXX' : ")
+            user_input = input("Date (si différente d'aujourd'hui) et reférérence du dossier (légende du plan) dans le format suivant 'DD/MM/YYYY, 25.XXX' : ")
 
             # Split the input string into a list at the comma and convert each item to an integer
             input_list = [element.strip() for element in user_input.split(',')]
@@ -73,7 +73,7 @@ def date_and_ref():
                     input_list[0] = '\\today'
                     return input_list
             else:
-                print("Faut lire la demande... 'DD/MM/YYYY, 24.XXX' séparé par une virgule")
+                print("Faut lire la demande... 'DD/MM/YYYY, 25.XXX' séparé par une virgule")
         except ValueError:
             print("Nique toi, je sais pas comment c'est possible d'avoir cette erreur")
 

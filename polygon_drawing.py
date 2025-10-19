@@ -62,7 +62,6 @@ def polygon_mid_distance(gdf, polygon_midistance_shp, cadastral_map):
     gdf_polygon = gpd.GeoDataFrame(index=[0], crs='epsg:4326', geometry=[protection_zone])
     gdf_polygon = gdf_polygon.to_crs('EPSG:3812')
     gdf_polygon.to_file(polygon_midistance_shp+'.shp', driver='ESRI Shapefile')
-    gdf_polygon.to_file(polygon_midistance_shp+'.dxf', driver='DXF')
 
     protection_zone_fitted = fit_polygon_to_cadastral_plan(polygon_midistance_shp, cadastral_map)
 
@@ -77,8 +76,6 @@ def fit_polygon_to_cadastral_plan(polygon_path, cadastral_map):
                         bbox=polygon.bounds,  # Only load relevant area
                         ignore_geometry=False,
                         include_fields=[])  # Skip attribute data for speed
-    
-    print(f"Loaded {len(parcels)} parcels (instead of all)")
     
     intersecting_parcels = parcels[parcels.intersects(polygon)]
 
@@ -207,18 +204,19 @@ def create_polygon_from_intersections(gdf, polygon_quarter_distance_shp):
 
     polygon = Polygon(sorted_coords)
 
-    convex_hull = polygon.convex_hull
-    is_convex = polygon.equals(convex_hull) or polygon.area / convex_hull.area > 0.99
-
-    if is_convex is True:
-        print(f"Aire totale du polygone : {polygon.area:.2f}")
-        print(f"Polygone convexe : {is_convex}")
-
     gdf_polygon = gpd.GeoDataFrame(index=[0], crs='epsg:4326', geometry=[polygon])
+    gdf_polygon = gdf_polygon.to_crs('EPSG:3812')
     gdf_polygon.to_file(polygon_quarter_distance_shp+'.shp', driver='ESRI Shapefile')
-    gdf_polygon.to_file(polygon_quarter_distance_shp+'.dxf', driver='DXF')
 
     return polygon
+
+def visualisation_parcels(parcels, intersecting_parcels):
+    fig, ax = plt.subplots(figsize=(12, 12))
+    parcels.plot(ax=ax, color='lightgray', edgecolor='black', linewidth=0.3, alpha=0.5)
+    intersecting_parcels.plot(ax=ax, color='red', edgecolor='black', linewidth=0.5, alpha=0.6)
+    plt.title('Parcels intersecting the polygon')
+    plt.show()
+
 
 # def visualize_construction(gdf, intersections, perpendicular_lines, polygon=None):
 #     """

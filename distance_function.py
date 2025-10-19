@@ -13,9 +13,7 @@ def get_planar_distance(gdf_init,geometry,nb_point):
     closest_points = closest_points.reset_index(drop=True)
 
     closest_points.crs = "EPSG:3812"
-    # closest_points = closest_points.to_crs("EPSG:4326") #convert to WGS 84 - needed for road distance
-    # # closest_points.to_csv('closest_WGS.csv')
-    
+
     return closest_points
 
 def distance_fly_old_new_implantation(point1, point2):
@@ -29,6 +27,44 @@ def distance_fly_old_new_implantation(point1, point2):
     distance = gdf.at[0, 'geometry'].distance(gdf.at[1, 'geometry'])
 
     return distance
+
+def road_distance(gdf, coord_init, API_KEY):
+    # Convert the initial coordinate to EPSG:4326 if necessary
+    temp_gdf = gpd.GeoDataFrame([1], geometry=[coord_init], crs="EPSG:3812")
+    temp_gdf = temp_gdf.to_crs("EPSG:4326")
+    first_point = temp_gdf.geometry.iloc[0]
+    first_coord = (first_point.x, first_point.y)
+
+    # Prepare a list of coordinate pairs for parallel processing
+    coord_pairs = []
+    for index, row in gdf.iterrows():
+        current_point = row.geometry
+        current_coord = (current_point.x, current_point.y)
+        coord_pairs.append((first_coord, current_coord))
+    
+    # Initialize the cache
+    cache = {}
+
+    # Function to wrap get_road_distance_and_geometry for use with ThreadPoolExecutor
+    def get_distance_and_geometry(params):
+        return get_road_distance_and_geometry(*params, API_KEY, cache)
+    
+    # Calculate distances and midpoints in parallel
+    road_distances = []
+    midpoints = []
+    all_geometry = []
+    with ThreadPoolExecutor(max_workers=40) as executor:
+        futures = [executor.submit(get_distance_and_geometry, pair) for pair in coord_pairs]
+        for future in futures:
+            distance, geometry = future.result()
+            all_geometry.append(geometry)
+            road_distances.append(distance)
+            midpoints.append(get_midpoint_by_geometry(geometry))
+    
+    # Adding the road distances and midpoints as new columns to the GeoDataFrame
+    gdf['road_distance'] = road_distances
+    gdf['midpoint'] = midpoints
+    return gdf, all_geometry
     
 def get_road_distance_and_geometry(coord1, coord2, API_KEY, cache):
     # Check if the distance and geometry are already in the cache
@@ -47,7 +83,7 @@ def get_road_distance_and_geometry(coord1, coord2, API_KEY, cache):
     }
     
     # Body for the POST request, including the start and end coordinates
-    # Find the 3 roads to reach destinations, sharing at most 20% of the optimal road
+    # Find the 3 roads to reach destinations, sharing at most 20%
     # and being 2x longer than the optimal road
     body = {
         "coordinates": [coord1, coord2],
@@ -120,39 +156,3 @@ def get_midpoint_by_geometry(route_geometry_array):
             midpoint_array.append(None)
     
     return midpoint_array
-
-def road_distance(gdf, coord_init, API_KEY):
-    # Convert the initial coordinate to EPSG:4326 if necessary
-    temp_gdf = gpd.GeoDataFrame([1], geometry=[coord_init], crs="EPSG:3812")
-    temp_gdf = temp_gdf.to_crs("EPSG:4326")
-    first_point = temp_gdf.geometry.iloc[0]
-    first_coord = (first_point.x, first_point.y)
-
-    # Prepare a list of coordinate pairs for parallel processing
-    coord_pairs = []
-    for index, row in gdf.iterrows():
-        current_point = row.geometry
-        current_coord = (current_point.x, current_point.y)
-        coord_pairs.append((first_coord, current_coord))
-    
-    # Initialize the cache
-    cache = {}
-
-    # Function to wrap get_road_distance_and_geometry for use with ThreadPoolExecutor
-    def get_distance_and_geometry(params):
-        return get_road_distance_and_geometry(*params, API_KEY, cache)
-    
-    # Calculate distances and midpoints in parallel
-    road_distances = []
-    midpoints = []
-    with ThreadPoolExecutor(max_workers=40) as executor:
-        futures = [executor.submit(get_distance_and_geometry, pair) for pair in coord_pairs]
-        for future in futures:
-            distance, geometry = future.result()
-            road_distances.append(distance)
-            midpoints.append(get_midpoint_by_geometry(geometry))
-    
-    # Adding the road distances and midpoints as new columns to the GeoDataFrame
-    gdf['road_distance'] = road_distances
-    gdf['midpoint'] = midpoints
-    return gdf
