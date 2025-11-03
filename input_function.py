@@ -8,7 +8,6 @@ def get_coord_by_pharma_id(gdf):
             id_number = input("Numéro d'identification de la pharmacie : ")
             # Filter the GeoDataFrame for the given id_number
             matching_row = gdf[gdf["Numéro d'autorisation"] == id_number]
-            
             # Check if there is a matching row
             if not matching_row.empty:
                 # Return the geometry
@@ -17,6 +16,13 @@ def get_coord_by_pharma_id(gdf):
                 # Return None or an appropriate response if no match is found
                 print("Lolilol, mauvais numéro d'identification")
 
+def get_adresse_by_pharma_id(id_number, gdf):
+    matching_row = gdf[gdf["Numéro d'autorisation"] == str(id_number)]
+    address = matching_row.iloc[0]['Adresse']
+    post_code = matching_row.iloc[0]['Code Postal']
+    town = matching_row.iloc[0]['Commune']
+
+    return [address, post_code, town]
 
 def coordinate_new_implantation():
     while True:

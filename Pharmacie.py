@@ -1,11 +1,8 @@
 """TO DO"""
 """
-ADDRESSES.CSV en Lambert 2008 => eviter une conversion 31370 to 3812
-
-
-POLYGONE 50% en vectoriel + cadastre + houses
-Itinéraire en leaflet sans polygone
-polygone 25% en vectoriel, cadastre background et pharma
+Tous les itinéraires sur cartes
+rescale front page
+select report type .tex
 
 if all: 
     deux adresses
@@ -13,9 +10,6 @@ if all:
     nouvelle routes
     polygone 25
     polygone 50
-
-Only one call of the API instead of 2. => stored geometry 
-    change json/geojson call of API
 
 Rapport transfert simple
 if < 100 m: 
@@ -101,9 +95,18 @@ report_type = project_type()
 
 # Get input data
 coord_init, id_number = get_coord_by_pharma_id(gdf)
-new_coordinates = coordinate_new_implantation()
-New_adresse = adress_new_implantation()
+if report_type == 3:
+    print("\nPharmacie réceptrice")
+    new_coordinates, id_number = get_coord_by_pharma_id(gdf)
+    New_adresse = get_adresse_by_pharma_id(id_number, gdf)
+else:
+    new_coordinates = coordinate_new_implantation()
+    New_adresse = adress_new_implantation()
 ref_plan = date_and_ref()
+
+print(New_adresse, new_coordinates)
+
+exit()
 
 closest_points_old = selection_pharmacies(gdf, coord_init, NB_POINT, new_coordinates)
 closest_points_old = closest_points_old.to_crs("EPSG:4326") #convert to WGS 84 - needed for road distance
@@ -124,6 +127,7 @@ folder_path = os.path.join(MAIN_FOLDER, YEAR, folder_name)
 create_folder(folder_path)
     
 closest_points_old.to_csv(os.path.join(folder_path, 'distance_closest_points_old.csv'))
+gdf_routes_geometry_old = save_routes_to_shapefile(routes_geometry_old, folder_path + '/routes_old')
 
 """Create CSV for new implentation"""
 gdf_temp = create_gdf_new_implentation(closest_points_old, New_adresse, new_coordinates)
@@ -137,6 +141,8 @@ closest_points_new['sort_key'] = closest_points_new["Numéro d'autorisation"].ma
 closest_points_new = closest_points_new.sort_values('sort_key').drop('sort_key', axis=1)
 
 closest_points_new.to_csv(os.path.join(folder_path, 'distance_closest_points_new.csv'))
+gdf_routes_geometry_new = save_routes_to_shapefile(routes_geometry_new, folder_path + '/routes_new')
+
 
 distance_old_new = distance_fly_old_new_implantation(coord_init, new_coordinates)
 if distance_old_new <= 100:
@@ -161,10 +167,6 @@ is_in_polygon = protection_zone_quarter_distance.contains(new_coordinates)
 html_path = os.path.join(MAIN_FOLDER, YEAR, folder_name, HTML_NEW_PHARMACY)
 create_folder(os.path.join(MAIN_FOLDER, YEAR, folder_name, FOLDER_NAME_TEX))
 new_implentation_pdf = os.path.join(MAIN_FOLDER, YEAR, folder_name, FOLDER_NAME_TEX, MAP_NEW_PHARMACY)
-# html_path_all_old = os.path.join(MAIN_FOLDER, YEAR, folder_name, HTML_ALL_PHARMACY_OLD)
-# html_path_all_new = os.path.join(MAIN_FOLDER, YEAR, folder_name, HTML_ALL_PHARMACY_NEW)
-# all_itinerary_old_pdf = os.path.join(MAIN_FOLDER, YEAR, folder_name, FOLDER_NAME_TEX, MAP_ALL_PHARMACY_OLD)
-# all_itinerary_new_png = os.path.join(MAIN_FOLDER, YEAR, folder_name, FOLDER_NAME_TEX, MAP_ALL_PHARMACY_NEW)
 all_itinerary_old_pdf = os.path.join(MAIN_FOLDER, YEAR, folder_name, FOLDER_NAME_TEX, POLYGON_50_PERCENT_EPS)
 all_itinerary_new_pdf = os.path.join(MAIN_FOLDER, YEAR, folder_name, FOLDER_NAME_TEX, POLYGON_25_PERCENT_EPS)
 start_coords = point_to_list(coord_init)
@@ -184,7 +186,7 @@ elif report_type == 2:
     bool_polygon_midistance = False
     bool_polygon_quarter = False 
 elif report_type == 3:
-    if closest_points_new.iloc[1]['distance'] < 1000:
+    if closest_points_old.iloc[1]['distance'] < 1000:
         bool_polygon_midistance = False
         bool_polygon_quarter = False
     else:
@@ -192,22 +194,19 @@ elif report_type == 3:
         bool_polygon_quarter =  True
 
 itinerary_cadastral_background(route_geometry, CADASTRAL_MAP, new_implentation_pdf)
-polygon_50_map(CADASTRAL_MAP, polygon_midistance_shp+'_fitted.shp', polygon_midistance_shp+'.shp', 
-                   adresse_polygon, all_itinerary_old_pdf, new_coordinates, routes_geometry_new, closest_points_new, True)
+polygon_50_map(CADASTRAL_MAP, polygon_midistance_shp+'_fitted.shp', polygon_midistance_shp+'.shp', adresse_polygon, 
+               all_itinerary_old_pdf, new_coordinates, gdf_routes_geometry_new, closest_points_new, bool_polygon_midistance, report_type)
 polygon_25_map(CADASTRAL_MAP, polygon_quarter_distance_shp+'.shp', all_itinerary_new_pdf, closest_points_old, 
-               coord_init, new_coordinates, routes_geometry_old, True)
-
-
-
-# display_route_all_pharma(closest_points_old, API_KEY, html_path_all_old, 1, map_offset, polygon_midistance)
-# converter.convert_single(html_path_all_old, all_itinerary_old_png)
-
-# display_route_all_pharma(closest_points_new, API_KEY, html_path_all_new, 0, map_offset, polygon_quarter)
-# converter.convert_single(html_path_all_new, all_itinerary_new_png)
+               coord_init, new_coordinates, gdf_routes_geometry_old, bool_polygon_quarter, report_type)
 
 #########################################################################################
 """Creates the .tex files"""
 cache = {}
+if closest_points_new.iloc[1,9] > 1000:
+    bool_nearest_1000 = False
+else:
+    bool_nearest_1000 = True
+
 tex_dictionary = {
     'Name_pharma': closest_points_old.iloc[0,1],
     'Id_pharma': str(closest_points_old.iloc[0,0]),
@@ -227,7 +226,13 @@ tex_dictionary = {
     'Distance_fly' : str(round(distance_old_new,2)),
     'Map_new_implentation' : new_implentation_pdf.replace('\\', '/'),
     'Map_all_itinerary_old' : all_itinerary_old_pdf.replace('\\','/'),
-    'Map_all_itinerary_new' : all_itinerary_new_pdf.replace('\\','/')
+    'Map_all_itinerary_new' : all_itinerary_new_pdf.replace('\\','/'),
+    'Name_pharma_fusion' : closest_points_new.iloc[0,1],
+    'Id_pharma_fusion' : str(closest_points_new.iloc[0,0]), 
+    'Name_pharma_near' : closest_points_new.iloc[1,1],
+    'Id_pharma_near' : str(closest_points_new.iloc[1,0]),
+    'Distance_road_near' : closest_points_new.iloc[1,9], 
+    'Bool_nearest_1000' : bool_nearest_1000
 }
 
 # Ensure the folder name is valid and does not exist

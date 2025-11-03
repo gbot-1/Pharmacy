@@ -26,8 +26,7 @@ def alphanum_key(s):
 def find_points_in_polygon(csv_file, polygon, output_file):
     points_df = pd.read_csv(csv_file)
     # Assuming the CSV has 'latitude' and 'longitude' columns
-    points_gdf = gpd.GeoDataFrame(points_df, geometry=gpd.points_from_xy(points_df.X, points_df.Y), crs="31370")
-    points_gdf = points_gdf.to_crs("EPSG:3812")
+    points_gdf = gpd.GeoDataFrame(points_df, geometry=gpd.points_from_xy(points_df.X, points_df.Y), crs="3812")
 
     gdf_polygon = gpd.GeoDataFrame(index=[0], crs='epsg:3812', geometry=[polygon])
 
@@ -216,80 +215,3 @@ def visualisation_parcels(parcels, intersecting_parcels):
     intersecting_parcels.plot(ax=ax, color='red', edgecolor='black', linewidth=0.5, alpha=0.6)
     plt.title('Parcels intersecting the polygon')
     plt.show()
-
-
-# def visualize_construction(gdf, intersections, perpendicular_lines, polygon=None):
-#     """
-#     Visualize the construction with highlighted intersections.
-#     """
-#     fig, ax = plt.subplots(1, 1, figsize=(12, 10))
-    
-#     # Plot original points
-#     gdf.plot(ax=ax, color='red', markersize=100, alpha=0.7, label='Original Points')
-    
-#     # Highlight reference point
-#     reference_point = gdf.geometry.iloc[0]
-#     ax.plot(reference_point.x, reference_point.y, 'ro', markersize=15, label='Reference Point (reference_point)')
-    
-#     # Plot intersections with yellow circles
-#     for intersection in intersections:
-#         circle = plt.Circle((intersection.x, intersection.y), radius=0.5, 
-#                           color='yellow', alpha=0.8, linewidth=2, fill=False)
-#         ax.add_patch(circle)
-#     ax.plot([], [], 'o', color='yellow', markersize=10, alpha=0.8, 
-#             markerfacecolor='none', markeredgewidth=2, label='Intersections')
-    
-#     for line in perpendicular_lines:
-#         x_coords, y_coords = line.xy
-#         ax.plot(x_coords, y_coords, 'b-', alpha=0.5, linewidth=1)
-#     ax.plot([], [], 'b-', alpha=0.5, linewidth=1, label='Perpendicular Lines')
-    
-#     # Plot polygon if provided
-#     if polygon is not None:
-#         x_coords, y_coords = polygon.exterior.xy
-#         ax.plot(x_coords, y_coords, 'k-', linewidth=2, alpha=0.8, label='Resulting Polygon')
-#         ax.fill(x_coords, y_coords, alpha=0.2, color='lightblue')
-    
-#     ax.set_aspect('equal')
-#     ax.grid(True, alpha=0.3)
-#     ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
-#     ax.set_title('Polygon Construction with Ordered Intersections')
-#     plt.tight_layout()
-#     plt.show()
-
-# def example_usage(gdf):
-#     """
-#     Example showing how to use the functions with pharmacy data.
-#     """
-#     try:
-#         # Find ordered intersections to create convex polygon
-#         intersections, perpendicular_lines = find_perpendicular_intersections_ordered(gdf)
-        
-#         print(f"{len(intersections)} points d'intersection créés pour un polygone à {len(intersections)} cotés")
-        
-#         if len(intersections) >= 3:
-#             # Create polygon from ordered intersections
-#             coords = [(point.x, point.y) for point in intersections]
-#             polygon = Polygon(coords)
-            
-#             # Verify if polygon is convex
-#             convex_hull = polygon.convex_hull
-#             is_convex = polygon.equals(convex_hull) or polygon.area / convex_hull.area > 0.99
-            
-#             print(f"Aire totale du polygone : {polygon.area:.2f}")
-#             print(f"Polygone convexe : {is_convex}")
-            
-#             # Visualize
-#             visualize_construction(gdf, intersections, perpendicular_lines, polygon)
-            
-#             gdf_polygon = gpd.GeoDataFrame(index=[0], crs='epsg:4326', geometry=[polygon])
-#             gdf_polygon.to_file("polygon_25_perc.shp", driver='ESRI Shapefile')
-
-#             return polygon
-#         else:
-#             print("Not enough intersections to create a polygon")
-#             return None
-            
-#     except Exception as e:
-#         print(f"Error: {e}")
-#         return None

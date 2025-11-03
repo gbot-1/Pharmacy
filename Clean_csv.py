@@ -4,14 +4,14 @@ import time
 start = time.time()
 
 # Define the file paths
-input_csv_path = 'adresses_wallonie.csv'  # Replace with your input CSV file path
-output_csv_path = 'adresses.csv'  # Replace with your desired output CSV file path
+input_csv_path = r'D:\Pharmacy_Raph\adresses_wallonie.csv'  # Replace with your input CSV file path
+output_csv_path = r'D:\Pharmacy_Raph\adresses.csv'  # Replace with your desired output CSV file path
 
 # Read the CSV file
 df = pd.read_csv(input_csv_path)
 
 # Specify the columns to keep
-columns_to_keep = ['X', 'Y','CODEPOSTAL','ZONE_ADRES','RUE_NOM','NUMERO']  # Replace with the columns you want to keep
+columns_to_keep = ['X1', 'Y1','CODEPOSTAL','ZONE_ADRES','RUE_NOM','NUMERO']  # Replace with the columns you want to keep
 
 # Keep only the specified columns
 df = df[columns_to_keep]
