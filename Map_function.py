@@ -56,8 +56,15 @@ def itinerary_cadastral_background(route_geometry, cadastral_map, map_path):
     # Calculate 10% expansion
     width = maxx - minx
     height = maxy - miny
-    buffer_x = width * 0.4  # 10% buffer
-    buffer_y = height * 0.4
+    if width < 50:
+        buffer_x = 50
+    else:
+        buffer_x = width * 0.4  # 10% buffer
+
+    if height < 50: 
+        buffer_y = 50
+    else:
+        buffer_y = height * 0.4
 
     expanded_bounds = (
         minx - buffer_x,
@@ -80,15 +87,24 @@ def itinerary_cadastral_background(route_geometry, cadastral_map, map_path):
     ax.text(x_coords[-1], y_coords[-1], '   Nouvelle', fontsize=12, color='black', 
             ha='left', va='bottom', weight='bold')
     ax.set_aspect('equal', adjustable='box')
-    ax.set_xlim([minx-width*0.2,maxx+width*0.2])
-    ax.set_ylim([miny-height*0.2,maxy+height*0.2])
+    if width<50:
+        ax.set_xlim([minx-buffer_x*0.8,maxx+buffer_x*0.8])
+    else:
+        ax.set_xlim([minx-width*0.2,maxx+width*0.2])
+    if height<50:
+        ax.set_ylim([miny-buffer_y*0.8,maxy+buffer_y*0.8]) 
+    else:
+        ax.set_ylim([miny-height*0.2,maxy+height*0.2])    
+    
+    
     ax.set_xlabel('Est (EPSG:3812)', fontsize=12)
     ax.set_ylabel('Nord (EPSG:3812)', fontsize=12)
+    plt.title("Distance entre les deux adresses")
     plt.tight_layout()
     plt.savefig(map_path, dpi=600, bbox_inches='tight')
 
 def polygon_50_map(cadastral_map, fitted_polygon, polygon_50, adresse_polygon, polygon_50_percent_pdf, 
-                        coords_new_pharma, gdf_routes, gdf_pharmacy, bool_polygon, report_type):
+                        coords_new_pharma, gdf_routes, gdf_pharmacy, bool_polygon):
     gdf_fitted = gpd.read_file(fitted_polygon, crs='EPSG:4326')
     gdf_fitted = gdf_fitted.to_crs('EPSG:3812')
     gdf_50_percent = gpd.read_file(polygon_50)
@@ -97,7 +113,8 @@ def polygon_50_map(cadastral_map, fitted_polygon, polygon_50, adresse_polygon, p
     gdf_pharmacy = gdf_pharmacy.to_crs('EPSG:3812')
     gdf_pharmacy = gdf_pharmacy.iloc[1:]
 
-    minx, miny, maxx, maxy = gdf_pharmacy.total_bounds
+    minx, miny, maxx, maxy = pd.concat([gdf_pharmacy, gdf_50_percent]).total_bounds
+
     # Calculate 10% expansion
     width = maxx - minx
     height = maxy - miny
@@ -140,7 +157,7 @@ def polygon_50_map(cadastral_map, fitted_polygon, polygon_50, adresse_polygon, p
     alt_routes = gdf_routes[gdf_routes['type'] == 'alternative']
     alt_routes.plot(ax=ax, color='moccasin', linewidth=2.5, alpha=0.8, zorder=7)
 
-    ax.plot(coords_new_pharma.x, coords_new_pharma.y, 'ro', markersize=10, zorder=10)
+    ax.plot(coords_new_pharma.x, coords_new_pharma.y, 'go', markersize=10, zorder=10)
     ax.text(coords_new_pharma.x, coords_new_pharma.y, '  X: %.2f\n  Y: %.2f' %(coords_new_pharma.x, coords_new_pharma.y),
             fontsize=10, color='black', ha='left', va='bottom', weight='bold', zorder=9)
     ax.set_aspect('equal', adjustable='box')
@@ -148,6 +165,7 @@ def polygon_50_map(cadastral_map, fitted_polygon, polygon_50, adresse_polygon, p
     ax.set_ylabel('Nord (EPSG:3812)', fontsize=12)
     ax.set_xlim([minx-width*0.05,maxx+width*0.05])
     ax.set_ylim([miny-height*0.05,maxy+height*0.05])
+    plt.title("Distance par la route entre la nouvelle adresse et les pharmacies les plus proches")
     plt.tight_layout()
     plt.savefig('polygon_50.png', dpi=300, bbox_inches='tight')
 
@@ -155,7 +173,7 @@ def polygon_50_map(cadastral_map, fitted_polygon, polygon_50, adresse_polygon, p
 
 
 def polygon_25_map(cadastral_map, polygon_25, map_path, gdf_pharmacy, old_coordinates, new_coordinates, 
-                   gdf_routes, bool_polygon, report_type):
+                   gdf_routes, bool_polygon, report_type, polygon_construction_elements):
     gdf_25_percent = gpd.read_file(polygon_25)
     # df = pd.read_csv(list_pharmacy)
     # gdf_pharmacy = gpd.GeoDataFrame(df,geometry=gpd.points_from_xy(df.X, df.Y), crs='EPSG:3812')
@@ -184,7 +202,7 @@ def polygon_25_map(cadastral_map, polygon_25, map_path, gdf_pharmacy, old_coordi
     fig, ax = plt.subplots(figsize=(12, 12))
     parcels.plot(ax=ax, color='white', edgecolor='silver', linewidth=0.3, alpha=0.4)
     if bool_polygon:
-        gdf_25_percent.plot(ax=ax, facecolor='none', edgecolor='black', linewidth=1.5, alpha=1)
+        gdf_25_percent.plot(ax=ax, facecolor='none', edgecolor='black', linewidth=1.5, alpha=1, zorder=18)
     gdf_pharmacy.plot(ax=ax, color= 'magenta', marker='D', markersize=75, edgecolor='black', zorder=8)
 
     for idx, row in gdf_pharmacy.iterrows():
@@ -201,18 +219,24 @@ def polygon_25_map(cadastral_map, polygon_25, map_path, gdf_pharmacy, old_coordi
     alt_routes = gdf_routes[gdf_routes['type'] == 'alternative']
     alt_routes.plot(ax=ax, color='moccasin', linewidth=2.5, alpha=0.8, zorder=7)
     
-    ax.plot(old_coordinates.x, old_coordinates.y, 'ro', markersize=10, zorder=10)
+    ax.plot(old_coordinates.x, old_coordinates.y, 'ro', markersize=10, zorder=20)
     ax.text(old_coordinates.x, old_coordinates.y, '  X: %.2f\n  Y: %.2f' %(old_coordinates.x, old_coordinates.y),
-            fontsize=10, color='black', ha='left', va='bottom', weight='bold', zorder=9)
-    if report_type != 3 or bool_polygon is True:
-        ax.plot(new_coordinates.x, new_coordinates.y, 'go', markersize=10, zorder=10)
-        ax.text(new_coordinates.x, new_coordinates.y, '  X: %.2f\n  Y: %.2f' %(new_coordinates.x, new_coordinates.y),
-                fontsize=10, color='black', ha='left', va='bottom', weight='bold', zorder=9)
+            fontsize=10, color='black', ha='left', va='bottom', weight='bold', zorder=19)
+    # if report_type != 3 or bool_polygon is True:
+    #     ax.plot(new_coordinates.x, new_coordinates.y, 'go', markersize=10, zorder=10)
+    #     ax.text(new_coordinates.x, new_coordinates.y, '  X: %.2f\n  Y: %.2f' %(new_coordinates.x, new_coordinates.y),
+    #             fontsize=10, color='black', ha='left', va='bottom', weight='bold', zorder=9)
+    intersections, perpendicular_lines, quarter_points = convert_tuple_to_gdf_and_transform(polygon_construction_elements)
+    intersections.plot(ax=ax, marker = 'X', color='yellow', markersize=45, alpha=0.7, zorder = 5)
+    perpendicular_lines.plot(ax=ax, color='blue', linewidth=0.5, alpha=0.5, zorder=5)
+    quarter_points.plot(ax=ax, color='green', markersize=10, marker='^', alpha=0.7, zorder = 5)
+
     ax.set_aspect('equal', adjustable='box')
     ax.set_xlabel('Est (EPSG:3812)', fontsize=12)
     ax.set_ylabel('Nord (EPSG:3812)', fontsize=12)
     ax.set_xlim([minx-width*0.05,maxx+width*0.05])
     ax.set_ylim([miny-height*0.05,maxy+height*0.05])
+    plt.title("Distance par la route entre l'ancienne adresse et les pharmacies les plus proches")
     plt.tight_layout()
     plt.savefig('polygon_25.png', dpi=300, bbox_inches='tight')
     plt.savefig(map_path, bbox_inches='tight')
@@ -227,7 +251,7 @@ def save_routes_to_shapefile(route_geometry, output_path, crs='EPSG:3812'):
         
         # Process each iteration for this route
         for iteration_idx, coords in enumerate(route_variations):
-            if len(coords) > 0:  # Check if coordinates exist
+            if len(coords) > 1:  # Check if coordinates exist
                 # Create LineString from coordinates (swap lat/lon to lon/lat)
                 line = LineString([(lon, lat) for lat, lon in coords])
                 
@@ -252,3 +276,17 @@ def save_routes_to_shapefile(route_geometry, output_path, crs='EPSG:3812'):
     gdf_routes.to_file(output_path + '.shp')
 
     return gdf_routes
+
+def convert_tuple_to_gdf_and_transform(geom_tuple, source_crs='EPSG:3812', target_crs='EPSG:3812'):
+    gdf_list = []
+    
+    for geom_list in geom_tuple:
+        # Create GeoDataFrame from list
+        gdf = gpd.GeoDataFrame(geometry=geom_list, crs=source_crs)
+        
+        # Transform to target CRS
+        gdf_transformed = gdf.to_crs(target_crs)
+        
+        gdf_list.append(gdf)
+    
+    return tuple(gdf_list)

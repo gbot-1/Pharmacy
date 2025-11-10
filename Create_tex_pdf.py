@@ -2,6 +2,7 @@ from input_function import*
 import pandas as pd
 import subprocess
 import os
+from pathlib import Path
 
 def generate_main_latex(template_path, output_path, data_dict):
     # Read the template
@@ -34,7 +35,6 @@ def csv_to_latex_table(csv_path, latex_file_path, bool_old, id_old_pharmacy):
         else:
             f.write("\\section*{Distances entre la nouvelle adresse et les officines voisines}\n")
         
-        f.write("À la première ligne du tableau se trouvent les coordonnées de l'officine actuelle (avant déménagement) dont ce rapport fait objet.\n")
         # Start the table environment
         f.write('\\begin{table}[H]\n')
         f.write('\\centering\n')
@@ -70,3 +70,53 @@ def compile_tex_to_pdf(tex_folder, tex_filename):
         subprocess.run(command, shell=True, check=True)
     else:
         print(f"The file {tex_path} does not exist.")
+
+def list_of_people(folder_path, FOLDER_NAME_TEX, HABITANTS_TEX):
+    folder = Path(folder_path)
+    file = next(folder.glob("*_filled.csv"), None)
+
+    if file:
+        df = pd.read_csv(file)
+        df_summary = df.groupby(['CODEPOSTAL','ZONE_ADRES','RUE_NOM'])['NBR_HABITANTS'].sum().reset_index()
+        df_summary.to_csv(folder_path + "/people_by_street.csv", index=False)
+        bool_csv_filled = True
+        latex_file_path = os.path.join(folder_path, FOLDER_NAME_TEX, HABITANTS_TEX)
+        habitants_to_table(df, latex_file_path, bool_csv_filled)
+        return bool_csv_filled
+    else:
+        bool_csv_filled = False
+        latex_file_path = os.path.join(folder_path, FOLDER_NAME_TEX, HABITANTS_TEX)
+        habitants_to_table(None, latex_file_path, bool_csv_filled)
+        return bool_csv_filled
+
+def habitants_to_table(df, latex_file_path, bool_csv_filled):
+    # Open a file to write the LaTeX code
+    with open(latex_file_path, 'w', encoding='utf-8') as f:
+
+        f.write("\\section*{Distances entre la nouvelle adresse et les officines voisines}\n")
+        
+        # Start the table environment
+        f.write('\\begin{table}[H]\n')
+        f.write('\\centering\n')
+        f.write('\\begin{tabular}{|r|l|l|c|}\n')
+        f.write('\\hline\n')
+
+        # Write the header row
+        f.write('\\multicolumn{1}{|r|}{\\textbf{Rue}} & \\textbf{Ville} & \\textbf{Code Postal} & \\textbf{Habitants} \\\\\n')
+        f.write('\\hline\n')
+
+        if bool_csv_filled:
+            # Write the data rows
+            for index, row in df.iterrows():
+                if index == 0:
+                    continue
+                f.write(f"{row[2]} & {row[1]} & {row[0]} & {row[3]} \\\\\n")
+                f.write('\\hline\n')
+        else:
+            f.write(f"Rue du Lorem & Ipsum & 1.6180 & 3.1415 \\\\\n")
+            f.write('\\hline\n')
+
+                # End the table environment
+        f.write('\\end{tabular}\n')
+        f.write("\\caption{Nombre d'habitants par rue dans la Zone d'Influence Géographique}\n")
+        f.write('\\end{table}\n')

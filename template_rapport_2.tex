@@ -1,8 +1,10 @@
+
+%%%% RAPPORT TRANSFERT + FUSION %%%%%%%%%
+
 \documentclass[11pt]{article}
 \usepackage[a4paper, margin=1in]{geometry}
 \usepackage[french]{babel}
 \usepackage{graphicx}
-\usepackage{epstopdf}
 \usepackage{tabularx}
 \usepackage{float}
 \usepackage{hyperref}
@@ -41,13 +43,13 @@
 \hrule
 
 \begin{center}
-    \huge\textbf{Objet : Demande de transfert de pharmacie}\\
+    \huge\textbf{Demande de transfert de pharmacie}\\
     \vspace{2mm}
     \huge\textbf{{{ Name_pharma }} (APB {{ Id_pharma }})} \\
 \end{center}
 \vfill
 \begin{center}
-    \includegraphics[max width=\textwidth,max height=0.6\textheight]{{{ Map_new_implentation }}}
+    \includegraphics[max width=\textwidth,max height=0.55\textheight]{{{ Map_new_implentation }}}
 \end{center}
 
 \end{titlepage}
@@ -61,15 +63,15 @@
 
 \vspace{10mm}
 
-Rapport de transfert de la {{ Name_pharma }} (N° APB {{ Id_pharma }}) depuis {{ Old_adress }}- {{ Old_postcode }} {{ Old_town }} vers {{ New_adress }} - {{ New_postcode }} {{ New_town }}.
+Rapport de transfert de la pharmacie {{ Name_pharma }} (N° APB {{ Id_pharma }}) depuis {{ Old_adress }}- {{ Old_postcode }} {{ Old_town }} vers {{ New_adress }} - {{ New_postcode }} {{ New_town }}.
 
 \vspace{25mm}
 
 \section*{Coordonnées Lambert 2008}
 \begin{minipage}{0.5\linewidth}
-Adresse actuelle: \\
-X : {{ Old_X }} m \\
-Y : {{ Old_Y }} m \\
+    Adresse actuelle: \\
+    X : {{ Old_X }} m \\
+    Y : {{ Old_Y }} m \\
 \end{minipage}
 \hfill
 \begin{minipage}{0.5\linewidth}
@@ -80,24 +82,20 @@ Y : {{ Old_Y }} m \\
 
 \vspace{10mm}
 
+
+
 \section*{Distance entre les deux adresses}
-% \begin{figure}[H]
-%     \centering
-%     \includegraphics[width=0.6\textwidth]{example-image}
-%     \caption{\textit{Extrait du plan "Distance entre les deux adresses" du {{ Date_plan }} - réf : {{ Ref_dossier }}. Plan en annexe 1 de ce document }} 
-% \end{figure}
-
-
 \noindent Distance totale entre les deux adresses par la voie publique : {{ Distance_road }} m\\
 
 \noindent Distance "à vol d'oiseau" : {{ Distance_fly }} m\\
 
-\vspace{25mm}
-\noindent \textbf{\large J'atteste par la présente que la pharmacie se déplace bien dans un rayon de 3000m.}\\
+\vfill
+\noindent \textbf{\large J'atteste par la présente que la pharmacie se déplace bien dans un rayon de 3000m.}\\ 
+\vfill
 
-\vspace{25mm}
-
-\noindent Rapport rédigé par MATHIEU Raphaël, Ingénieur géomètre, légalement admis et assermenté en cette qualité par le Tribunal de première Instance séant à Namur, inscrit au Conseil Fédéral des géomètres-experts sous le numéro GEO/21/1547.
+\vspace{15mm}
+\noindent Rapport rédigé par MATHIEU Raphaël, Ingénieur géomètre, légalement admis et assermenté en cette qualité 
+    par le Tribunal de première Instance séant à Namur, inscrit au Conseil Fédéral des géomètres-experts sous le numéro GEO/21/1547.
 \vspace{10mm}
 \begin{flushright}
     \textit{Rapport établi à Aiseau-Presles le \today }

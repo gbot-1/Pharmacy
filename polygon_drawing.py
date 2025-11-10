@@ -51,7 +51,9 @@ def find_points_in_polygon(csv_file, polygon, output_file):
 
 def polygon_mid_distance(gdf, polygon_midistance_shp, cadastral_map):
     gdf_truncated = gdf.iloc[1:]
-    all_points = [point for point_list in gdf_truncated['midpoint'] for point in point_list]
+    all_points = [point for point_list in gdf_truncated['midpoint'] 
+                  if point_list != [None]
+                  for point in point_list]
     coords = np.array([[point.y, point.x] for point in all_points])
     reference_point = gdf.geometry.iloc[0]
     sorted_coords = sorted(coords, key=lambda point: angle_from_reference_point(point, reference_point))
@@ -155,9 +157,11 @@ def find_perpendicular_intersections_ordered(gdf):
     
     # Create perpendicular lines for each sorted point
     perpendicular_lines = []
+    quarter_points = []
     
     for other_point in sorted_points:
         quarter_point = find_quarter_point(reference_point, other_point)
+        quarter_points.append(quarter_point)
         perp_line = get_perpendicular_line(reference_point, other_point, quarter_point)
         if perp_line is not None:
             perpendicular_lines.append(perp_line)
@@ -177,10 +181,11 @@ def find_perpendicular_intersections_ordered(gdf):
             elif intersection.geom_type == 'MultiPoint':
                 intersections.append(list(intersection.geoms)[0])
     
-    return intersections, perpendicular_lines
+    return intersections, perpendicular_lines, quarter_points
 
 def create_polygon_from_intersections(gdf, polygon_quarter_distance_shp):
-    intersections, perpendicular_lines = find_perpendicular_intersections_ordered(gdf)
+    gdf = gdf.to_crs('EPSG:3812')
+    intersections, perpendicular_lines, quarter_points = find_perpendicular_intersections_ordered(gdf)
     """
     Create a polygon from intersection points by ordering them properly.
     """
@@ -203,15 +208,57 @@ def create_polygon_from_intersections(gdf, polygon_quarter_distance_shp):
 
     polygon = Polygon(sorted_coords)
 
-    gdf_polygon = gpd.GeoDataFrame(index=[0], crs='epsg:4326', geometry=[polygon])
-    gdf_polygon = gdf_polygon.to_crs('EPSG:3812')
+    gdf_polygon = gpd.GeoDataFrame(index=[0], crs='epsg:3812', geometry=[polygon])
+    # gdf_polygon = gdf_polygon.to_crs('EPSG:3812')
     gdf_polygon.to_file(polygon_quarter_distance_shp+'.shp', driver='ESRI Shapefile')
 
-    return polygon
+    return polygon, (intersections, perpendicular_lines, quarter_points)
 
 def visualisation_parcels(parcels, intersecting_parcels):
     fig, ax = plt.subplots(figsize=(12, 12))
     parcels.plot(ax=ax, color='lightgray', edgecolor='black', linewidth=0.3, alpha=0.5)
     intersecting_parcels.plot(ax=ax, color='red', edgecolor='black', linewidth=0.5, alpha=0.6)
     plt.title('Parcels intersecting the polygon')
+    plt.show()
+
+def visualize_construction(gdf, intersections, perpendicular_lines, quarter_points, polygon=None):
+    """
+    Visualize the construction with highlighted intersections.
+    """
+    fig, ax = plt.subplots(1, 1, figsize=(12, 10))
+    
+    # Plot original points
+    gdf.plot(ax=ax, color='red', markersize=100, alpha=0.7, label='Original Points')
+    
+    # Highlight reference point
+    reference_point = gdf.geometry.iloc[0]
+    ax.plot(reference_point.x, reference_point.y, 'ro', markersize=15, label='Reference Point (reference_point)')
+    
+    # Plot intersections with yellow circles
+    for intersection in intersections:
+        circle = plt.Circle((intersection.x, intersection.y), radius=0.0005, 
+                          color='yellow', alpha=0.8, linewidth=2, fill=False)
+        ax.add_patch(circle)
+    ax.plot([], [], 'o', color='yellow', markersize=10, alpha=0.8, 
+            markerfacecolor='none', markeredgewidth=2, label='Intersections')
+    
+    for line in perpendicular_lines:
+        x_coords, y_coords = line.xy
+        ax.plot(x_coords, y_coords, 'b-', alpha=0.5, linewidth=1)
+    ax.plot([], [], 'b-', alpha=0.5, linewidth=1, label='Perpendicular Lines')
+
+    for point in quarter_points:
+        ax.plot(point.x, point.y, 'go', markersize = 5)
+    
+    # Plot polygon if provided
+    if polygon is not None:
+        x_coords, y_coords = polygon.exterior.xy
+        ax.plot(x_coords, y_coords, 'k-', linewidth=2, alpha=0.8, label='Resulting Polygon')
+        ax.fill(x_coords, y_coords, alpha=0.2, color='lightblue')
+    
+    ax.set_aspect('equal')
+    ax.grid(True, alpha=0.3)
+    ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+    ax.set_title('Polygon Construction with Ordered Intersections')
+    plt.tight_layout()
     plt.show()

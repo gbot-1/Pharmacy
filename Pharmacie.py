@@ -1,39 +1,7 @@
 """TO DO"""
 """
-Tous les itinéraires sur cartes
-rescale front page
-select report type .tex
-
-if all: 
-    deux adresses
-    anciennes routes
-    nouvelle routes
-    polygone 25
-    polygone 50
-
-Rapport transfert simple
-if < 100 m: 
-    rapport classique
-else:
-    if is_in_25%:
-        rapport classique
-    else:
-        polygone 50% w/ liste habitations
-
-Transfert + Fusion
-Rapport classique
-
-Fusion
-if ( >= 1 pharma in dist<1000):
-    tableau distance par rapport nouvelle
-    plan nouvelle adresse
-    plan 2 adresses
-else:
-    tableau distance par rapport nouvelle
-    plan nouvelle adresse
-    plan 2 adresses
-    polygone 50% + adresse_in_polygone.csv
-
+Polygon 25% construction
+Include list of housing
 
 CLEAN EVERYTHING
 """
@@ -52,28 +20,28 @@ from Map_function import*
 from save_fig import*
 from polygon_drawing import*
 
-FILEPATH = 'D:/Pharmacy_Raph/Lst_Pharmacies_pub_Extended.xlsx'
 ADRESS_CSV = 'D:/Pharmacy_Raph/adresses.csv'
-TEMPLATE_PATH = 'D:/Pharmacy_Raph/Codes/template_rapport.tex'
-MAIN_FOLDER = "D:/Pharmacy_Raph"
-MAP_NEW_PHARMACY = 'map_new_implentation.pdf'
-POLYGON_50_PERCENT_EPS = 'protection_zone_50_percent.pdf'
-POLYGON_25_PERCENT_EPS = 'protection_zone_25_percent.pdf'
-HTML_NEW_PHARMACY = 'itinerary_new_pharmacy.html'
-MAP_ALL_PHARMACY_OLD = 'map_all_pharmacy_old.png'
-MAP_ALL_PHARMACY_NEW = 'map_all_pharmacy_new.png'
-HTML_ALL_PHARMACY_OLD = 'all_itineraries_old.html'
-HTML_ALL_PHARMACY_NEW = 'all_itineraries_new.html'
-POLYGON_50_PERCENT = 'polygon_50_percent'
-POLYGON_25_PERCENT = 'polygon_25_percent'
-EXCEL_HOUSES = 'adresses_in_polygon.csv'
 CADASTRAL_MAP = 'D:/Pharmacy_Raph/QGIS/Cadastre/Bpn_CaPa_WAL.shp'
-FOLDER_NAME_TEX = 'Tex_files'
-NB_POINT = 10
-YEAR = str(datetime.datetime.now().year)
-API_KEY = '5b3ce3597851110001cf6248cca3afa1547a460ab12d2624d73dbe4e'
+FILEPATH = 'D:/Pharmacy_Raph/Lst_Pharmacies_pub_Extended.xlsx'
+MAIN_FOLDER = "D:/Pharmacy_Raph"
+TEMPLATE_PATH = 'D:/Pharmacy_Raph/Codes/template_rapport_'
 
-map_offset = 0.001
+API_KEY = '5b3ce3597851110001cf6248cca3afa1547a460ab12d2624d73dbe4e'
+EXCEL_HOUSES = 'adresses_in_polygon.csv'
+FOLDER_NAME_TEX = 'Tex_files'
+HABITANTS_TEX = "table_habitants_per_street.tex"
+HTML_ALL_PHARMACY_NEW = 'all_itineraries_new.html'
+HTML_ALL_PHARMACY_OLD = 'all_itineraries_old.html'
+HTML_NEW_PHARMACY = 'itinerary_new_pharmacy.html'
+MAP_ALL_PHARMACY_NEW = 'map_all_pharmacy_new.png'
+MAP_ALL_PHARMACY_OLD = 'map_all_pharmacy_old.png'
+MAP_NEW_PHARMACY = 'map_new_implentation.pdf'
+NB_POINT = 10
+POLYGON_25_PERCENT = 'polygon_25_percent'
+POLYGON_25_PERCENT_EPS = 'protection_zone_25_percent.pdf'
+POLYGON_50_PERCENT = 'polygon_50_percent'
+POLYGON_50_PERCENT_EPS = 'protection_zone_50_percent.pdf'
+YEAR = str(datetime.datetime.now().year)
 
 def create_folder(folder_path):
     if not os.path.exists(folder_path):
@@ -91,22 +59,20 @@ def point_to_list(point_coord):
 df = load_db_from_excel(FILEPATH)
 gdf = gpd.GeoDataFrame(df, geometry=gpd.points_from_xy(df.X, df.Y))
 
-report_type = project_type()
+report_type, is_temp = project_type()
+TEMPLATE_PATH = TEMPLATE_PATH + str(report_type) + '.tex'
 
 # Get input data
 coord_init, id_number = get_coord_by_pharma_id(gdf)
 if report_type == 3:
     print("\nPharmacie réceptrice")
     new_coordinates, id_number = get_coord_by_pharma_id(gdf)
-    New_adresse = get_adresse_by_pharma_id(id_number, gdf)
+    New_adresse, name_pharma = get_info_by_pharma_id(id_number, gdf)
 else:
     new_coordinates = coordinate_new_implantation()
     New_adresse = adress_new_implantation()
+    name_pharma = ""
 ref_plan = date_and_ref()
-
-print(New_adresse, new_coordinates)
-
-exit()
 
 closest_points_old = selection_pharmacies(gdf, coord_init, NB_POINT, new_coordinates)
 closest_points_old = closest_points_old.to_crs("EPSG:4326") #convert to WGS 84 - needed for road distance
@@ -130,7 +96,7 @@ closest_points_old.to_csv(os.path.join(folder_path, 'distance_closest_points_old
 gdf_routes_geometry_old = save_routes_to_shapefile(routes_geometry_old, folder_path + '/routes_old')
 
 """Create CSV for new implentation"""
-gdf_temp = create_gdf_new_implentation(closest_points_old, New_adresse, new_coordinates)
+gdf_temp = create_gdf_new_implentation(closest_points_old, New_adresse, new_coordinates, name_pharma)
 closest_points_new = get_planar_distance(gdf_temp, new_coordinates, NB_POINT)
 closest_points_new = closest_points_new.to_crs("EPSG:4326")
 closest_points_new, routes_geometry_new = road_distance(closest_points_new, new_coordinates, API_KEY)
@@ -160,7 +126,7 @@ adresse_polygon = os.path.join(MAIN_FOLDER, YEAR, folder_name, EXCEL_HOUSES)
 find_points_in_polygon(ADRESS_CSV, protection_zone_midistance, adresse_polygon)
 
 # intersections, perpendicular_lines = find_perpendicular_intersections_ordered(gdf)
-protection_zone_quarter_distance = create_polygon_from_intersections(closest_points_old, polygon_quarter_distance_shp)
+protection_zone_quarter_distance, polygon_construction_elements = create_polygon_from_intersections(closest_points_old, polygon_quarter_distance_shp)
 is_in_polygon = protection_zone_quarter_distance.contains(new_coordinates)
 
 ##########################################################################################
@@ -176,33 +142,39 @@ end_coords = point_to_list(new_coordinates)
 route_geometry = get_route(start_coords, end_coords, API_KEY)
 
 if report_type == 1:
-    if near_transfert or is_in_polygon:
+    if near_transfert:
         bool_polygon_midistance = False
         bool_polygon_quarter = False
+        bool_near_transfert = True
+    elif is_in_polygon:
+        bool_polygon_midistance = False
+        bool_polygon_quarter = True
+        bool_near_transfert = True
     else:
         bool_polygon_midistance = True
-        bool_polygon_quarter =  True
+        bool_polygon_quarter =  False
+        bool_near_transfert = False
 elif report_type == 2:
     bool_polygon_midistance = False
-    bool_polygon_quarter = False 
+    bool_polygon_quarter = False
 elif report_type == 3:
     if closest_points_old.iloc[1]['distance'] < 1000:
         bool_polygon_midistance = False
         bool_polygon_quarter = False
     else:
         bool_polygon_midistance = True
-        bool_polygon_quarter =  True
+        bool_polygon_quarter =  False
 
 itinerary_cadastral_background(route_geometry, CADASTRAL_MAP, new_implentation_pdf)
 polygon_50_map(CADASTRAL_MAP, polygon_midistance_shp+'_fitted.shp', polygon_midistance_shp+'.shp', adresse_polygon, 
-               all_itinerary_old_pdf, new_coordinates, gdf_routes_geometry_new, closest_points_new, bool_polygon_midistance, report_type)
+               all_itinerary_old_pdf, new_coordinates, gdf_routes_geometry_new, closest_points_new, bool_polygon_midistance)
 polygon_25_map(CADASTRAL_MAP, polygon_quarter_distance_shp+'.shp', all_itinerary_new_pdf, closest_points_old, 
-               coord_init, new_coordinates, gdf_routes_geometry_old, bool_polygon_quarter, report_type)
+               coord_init, new_coordinates, gdf_routes_geometry_old, True, report_type, polygon_construction_elements)
 
 #########################################################################################
 """Creates the .tex files"""
 cache = {}
-if closest_points_new.iloc[1,9] > 1000:
+if closest_points_old.iloc[1,9] > 1000:
     bool_nearest_1000 = False
 else:
     bool_nearest_1000 = True
@@ -230,9 +202,12 @@ tex_dictionary = {
     'Name_pharma_fusion' : closest_points_new.iloc[0,1],
     'Id_pharma_fusion' : str(closest_points_new.iloc[0,0]), 
     'Name_pharma_near' : closest_points_new.iloc[1,1],
-    'Id_pharma_near' : str(closest_points_new.iloc[1,0]),
-    'Distance_road_near' : closest_points_new.iloc[1,9], 
-    'Bool_nearest_1000' : bool_nearest_1000
+    'Id_pharma_near' : str(closest_points_old.iloc[1,0]),
+    'Distance_road_near' : closest_points_old.iloc[1,9], 
+    'Bool_nearest_1000' : bool_nearest_1000, 
+    'Bool_near_transfert' : bool_near_transfert,
+    'Bool_temp' : is_temp, 
+    'Bool_is_in_polygon': is_in_polygon
 }
 
 # Ensure the folder name is valid and does not exist

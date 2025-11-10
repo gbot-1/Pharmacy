@@ -16,13 +16,14 @@ def get_coord_by_pharma_id(gdf):
                 # Return None or an appropriate response if no match is found
                 print("Lolilol, mauvais numéro d'identification")
 
-def get_adresse_by_pharma_id(id_number, gdf):
+def get_info_by_pharma_id(id_number, gdf):
     matching_row = gdf[gdf["Numéro d'autorisation"] == str(id_number)]
     address = matching_row.iloc[0]['Adresse']
     post_code = matching_row.iloc[0]['Code Postal']
     town = matching_row.iloc[0]['Commune']
+    name = matching_row.iloc[0]['Nom']
 
-    return [address, post_code, town]
+    return [address, post_code, town], name
 
 def coordinate_new_implantation():
     while True:
@@ -95,7 +96,12 @@ def project_type():
             if userInput not in {1, 2, 3}:
                 print("\nwesh tu essaye de faire quoi\n")
             else:
-                return userInput
+                if userInput == 1:
+                    is_temp_str = input("Est-ce un transfert simple ? (Y/N) ").strip().lower()
+                    is_temp = is_temp_str == "y"
+                    return userInput, is_temp
+                else:
+                    return userInput, None
         except ValueError:
             print("heuuuuuuu appelle moi mdr")
 

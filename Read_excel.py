@@ -28,17 +28,21 @@ def load_db_from_excel(filepath):
         
     return df
 
-def create_gdf_new_implentation(closest_points_old, New_adresse, new_coordinates):
+def create_gdf_new_implentation(closest_points_old, New_adresse, new_coordinates, name_pharma = ""):
     gdf = closest_points_old.copy(deep=True)
     gdf = gdf.to_crs("EPSG:3812")
+    if name_pharma == "":
+        new_name = closest_points_old.iloc[0,1]
+    else:
+        new_name = name_pharma
     new_row = {
         'Numéro d\'autorisation': closest_points_old.iloc[0,0],
-        'Nom': closest_points_old.iloc[0,1],
+        'Nom': new_name,
         'Adresse': New_adresse[0],  # Replace with the actual new address if available
         'Code Postal': New_adresse[1],  # Placeholder, replace with actual postal code if available
         'Commune': New_adresse[2],  # Placeholder, replace with actual commune if available
-        'X': 123456.789,  # Placeholder for new X coordinate, replace as needed
-        'Y': 987654.321,  # Placeholder for new Y coordinate, replace as needed
+        'X': new_coordinates.x,  # Placeholder for new X coordinate, replace as needed
+        'Y': new_coordinates.y,  # Placeholder for new Y coordinate, replace as needed
         'geometry': new_coordinates, # Placeholder, replace with actual geometry if available
         'distance': 0,
         'road_distance': 0,

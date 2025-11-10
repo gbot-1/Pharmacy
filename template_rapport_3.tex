@@ -15,6 +15,7 @@
 \usepackage{float}
 \usepackage{hyperref}
 \usepackage{pdfpages}
+\usepackage[export]{adjustbox}
 
 \usepackage{ifthen}
 \newboolean{boolnearest1000}
@@ -43,7 +44,7 @@
 \hfill
 \begin{minipage}{0.5\textwidth}
 \begin{flushright}
-    \includegraphics[scale=0.4]{"C:/Users/no-st/Code_Pharmarcie/Codes/LogoGeometre.png"}  
+    \includegraphics[scale=0.4]{"D:/Pharmacy_Raph/Codes/LogoGeometre.png"}  
 \end{flushright}
 \end{minipage}
 
@@ -54,10 +55,12 @@
 \begin{center}
     \huge\textbf{Demande de fusion de la pharmacie}\\
     \vspace{2mm}
-    \huge\textbf{{{ Name_pharma }} (APB {{ Id_pharma }})} avec la {{ Name_pharma_fusion }} (APB {{ Id_pharma_fusion }})\\
+    \huge\textbf{{{ Name_pharma }} (APB {{ Id_pharma }}) avec la {{ Name_pharma_fusion }} (APB {{ Id_pharma_fusion }})}\\
 \end{center}
-\vspace{30mm}
-\includegraphics[width=\textwidth]{{{ Map_new_implentation }}}
+\vfill
+\begin{center}
+    \includegraphics[max width=\textwidth,max height=0.6\textheight]{{{ Map_new_implentation }}}
+\end{center}
 
 \end{titlepage}
 
@@ -70,17 +73,15 @@
 \vspace{10mm}
 
 \noindent Rapport de fusion de la pharmacie {{ Name_pharma }} (N° APB {{ Id_pharma }}) {{ Old_adress }}- {{ Old_postcode }} {{ Old_town }} 
-avec la pharmacie {{ Name_pharma_fusion }} {{ New_adress }} - {{ New_postcode }} {{ New_town }}.
+avec la pharmacie {{ Name_pharma_fusion }} située {{ New_adress }} - {{ New_postcode }} {{ New_town }}.
 
 \vspace{25mm}
 
 \section*{Coordonnées Lambert 2008}
-\hfill
-\begin{minipage}{0.5\linewidth}
-    Adresse de fusion:\\
-    X : {{ New_X }} m\\
-    Y : {{ New_Y }} m\\
-\end{minipage}
+
+\noindent    Adresse de fusion:\\
+\noindent    X : {{ New_X }} m\\
+\noindent    Y : {{ New_Y }} m\\
 
 \vspace{10mm}
 
@@ -125,6 +126,6 @@ commune ou dans une commune limitrophe est respectée.
   \includepdf[fitpaper,rotateoversize]{{{ Map_all_itinerary_new }}}
 }{}
 
-\includepdf[fitpaper,rotateoversize]{{{ Map_all_itinerary_old }}}
+\includepdf[fitpaper,rotateoversize]{{{ Map_all_itinerary_new }}}
 
 \end{document}

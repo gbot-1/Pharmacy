@@ -1,0 +1,171 @@
+
+%%%% RAPPORT TRANSFERT SIMPLE 
+
+
+\documentclass[11pt]{article}
+\usepackage[a4paper, margin=1in]{geometry}
+\usepackage[french]{babel}
+\usepackage{graphicx}
+\usepackage{tabularx}
+\usepackage{float}
+\usepackage{hyperref}
+\usepackage{pdfpages}
+\usepackage[export]{adjustbox}
+
+\usepackage{ifthen}
+\newboolean{boolnearesttransfert}
+\setboolean{boolnearesttransfert}{{{ Bool_near_transfert }}}
+
+\newboolean{booltemp}
+\setboolean{booltemp}{{{ Bool_temp }}}
+
+\newboolean{boolpolygon}
+\setboolean{boolpolygon}{{{ Bool_is_in_polygon }}}
+
+\begin{document}
+\pagestyle{empty}
+
+\begin{titlepage}
+\begin{flushright}
+    \textit{Roselies, le \today }
+\end{flushright}
+
+\begin{minipage}{0.5\textwidth}
+\begin{flushleft}
+    \textbf{\LARGE MATHIEU Raphael} \\
+    Ingénieur Géomètre GEO21/1547 \\
+    \vspace{3mm}
+    Rue J. Wauters 52\\
+    6250 Roselies \\
+    \vspace{3mm}
+    Email: \href{mailto:mathieu.geometre@gmail.com}{mathieu.geometre@gmail.com}\\
+    GSM: \href{tel:+32471784815}{0471/78.48.15} \\
+\end{flushleft}
+\end{minipage}
+\hfill
+\begin{minipage}{0.5\textwidth}
+\begin{flushright}
+    \includegraphics[scale=0.4]{"D:/Pharmacy_Raph/Codes/LogoGeometre.png"}  
+\end{flushright}
+\end{minipage}
+
+\vspace{10mm}
+
+\hrule
+
+\begin{center}
+    \ifthenelse{\boolean{booltemp}}{
+        \huge\textbf{Demande de transfert temporaire de la pharmacie}\\
+    }{
+        \ifthenelse{\boolean{boolnearesttransfert}}{
+            \huge\textbf{Demande de transfert de proximité de la pharmacie}\\
+        }{
+            \huge\textbf{Demande de transfert de la pharmacie}\\
+        }
+    }
+    \vspace{2mm}
+    \huge\textbf{{{ Name_pharma }} (APB {{ Id_pharma }})} \\
+\end{center}
+\vfill
+\begin{center}
+    \includegraphics[max width=\textwidth,max height=0.55\textheight]{{{ Map_new_implentation }}}
+\end{center}
+
+\end{titlepage}
+
+
+
+\clearpage% Body
+\begin{center}
+    \ifthenelse{\boolean{booltemp}}{
+        \section*{\Huge Demande de transfert temporaire}
+    }{
+        \ifthenelse{\boolean{boolnearesttransfert}}{
+            \section*{\Huge Demande de transfert de proximité}
+        }{
+            \section*{\Huge Demande de transfert}
+        }
+    }
+\end{center}
+
+\vspace{10mm}
+
+Rapport de transfert de la pharmacie {{ Name_pharma }} (N° APB {{ Id_pharma }}) depuis {{ Old_adress }}- {{ Old_postcode }} {{ Old_town }} vers {{ New_adress }} - {{ New_postcode }} {{ New_town }}.
+
+\vspace{25mm}
+
+\section*{Coordonnées Lambert 2008}
+\begin{minipage}{0.5\linewidth}
+    Adresse actuelle: \\
+    X : {{ Old_X }} m \\
+    Y : {{ Old_Y }} m \\
+\end{minipage}
+\hfill
+\begin{minipage}{0.5\linewidth}
+    Nouvelle adresse:\\
+    X : {{ New_X }} m\\
+    Y : {{ New_Y }} m\\
+\end{minipage}
+
+\vspace{10mm}
+
+\section*{Distance entre les deux adresses}
+\noindent Distance totale entre les deux adresses par la voie publique : {{ Distance_road }} m\\
+
+\noindent Distance "à vol d'oiseau" : {{ Distance_fly }} m\\
+
+
+\vfill
+\ifthenelse{\boolean{booltemp}}{
+    \noindent \textbf{\large J'atteste par la présente que la pharmacie se déplace bien selon les règles d'un transfert temporaire.}\\
+}{
+    \ifthenelse{\boolean{boolnearesttransfert}}{
+        \noindent \textbf{\large J'atteste par la présente que la pharmacie se déplace bien selon un transfert de proximité.}
+        \ifthenelse{\boolean{boolpolygon}}{
+            \textbf{\large La nouvelle adresse se trouve dans le polygone de 25\%, voir dernier plan.}\\
+        }{
+            \textbf{\large La nouvelle adresse se trouve à moins de 100 m.}\\
+        }
+    }{
+        \noindent \textbf{\large J'atteste par la présente que la pharmacie se déplace bien dans un rayon de 3000m.}\\
+    }
+}
+\vfill
+
+\vspace{15mm}
+\noindent Rapport rédigé par MATHIEU Raphaël, Ingénieur géomètre, légalement admis et assermenté en cette qualité par le Tribunal de première Instance séant à Namur, inscrit au Conseil Fédéral des géomètres-experts sous le numéro GEO/21/1547.
+\vspace{10mm}
+\begin{flushright}
+    \textit{Rapport établi à Aiseau-Presles le \today }
+\end{flushright}
+
+\clearpage
+\include{table_new_implentation}
+
+\clearpage
+\include{table_old_implentation}
+
+%si moins 100m
+\includepdf[fitpaper,rotateoversize]{{{ Map_new_implentation }}}
+
+\includepdf[fitpaper,rotateoversize]{{{ Map_all_itinerary_new }}}
+
+\includepdf[fitpaper,rotateoversize]{{{ Map_all_itinerary_old }}}
+
+
+%Si +100m mais dans 25%
+%\includepdf[fitpaper,rotateoversize]{{{ Map_new_implentation }}} où le 25% apparait avec construction des perpendiculaires (voir 2025-004 p8/8))
+
+%\includepdf[fitpaper,rotateoversize]{{{ Map_all_itinerary_new }}}
+
+%\includepdf[fitpaper,rotateoversize]{{{ Map_all_itinerary_old }}}
+
+
+%Si cas du 50%
+%\includepdf[fitpaper,rotateoversize]{{{ Map_new_implentation }}}
+
+%\includepdf[fitpaper,rotateoversize]{{{ Map_all_itinerary_new }}} où le 50% apparait
+
+%\includepdf[fitpaper,rotateoversize]{{{ Map_all_itinerary_old }}}
+
+\end{document}
