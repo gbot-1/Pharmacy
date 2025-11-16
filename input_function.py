@@ -97,7 +97,7 @@ def project_type():
                 print("\nwesh tu essaye de faire quoi\n")
             else:
                 if userInput == 1:
-                    is_temp_str = input("Est-ce un transfert simple ? (Y/N) ").strip().lower()
+                    is_temp_str = input("Est-ce un transfert temporaire ? (Y/N) ").strip().lower()
                     is_temp = is_temp_str == "y"
                     return userInput, is_temp
                 else:

@@ -16,10 +16,24 @@
 \usepackage{hyperref}
 \usepackage{pdfpages}
 \usepackage[export]{adjustbox}
+\usepackage{longtable}
 
 \usepackage{ifthen}
 \newboolean{boolnearest1000}
 \setboolean{boolnearest1000}{{{ Bool_nearest_1000 }}}
+
+\newboolean{boolpeople}
+\setboolean{boolpeople}{{{ Bool_list_people }}}
+
+%% Conditional watermark
+\ifthenelse{\boolean{bool50}}{
+    \ifthenelse{\boolean{boolpeople}}{
+    }{
+        \usepackage{draftwatermark}
+        \SetWatermarkText{RAPPORT TEMPORAIRE}
+        \SetWatermarkScale{1.5}
+    }}
+{}
 
 \begin{document}
 \pagestyle{empty}
@@ -119,6 +133,11 @@ commune ou dans une commune limitrophe est respectée.
 
 \clearpage
 \include{table_old_implentation}
+
+\ifthenelse{\boolean{boolpeople}}{
+    \clearpage
+    \include{table_habitants_per_street}
+}{}
 
 \includepdf[fitpaper,rotateoversize]{{{ Map_new_implentation }}}
  

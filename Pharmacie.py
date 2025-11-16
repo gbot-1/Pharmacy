@@ -1,6 +1,5 @@
 """TO DO"""
 """
-Polygon 25% construction
 Include list of housing
 
 CLEAN EVERYTHING
@@ -29,7 +28,7 @@ TEMPLATE_PATH = 'D:/Pharmacy_Raph/Codes/template_rapport_'
 API_KEY = '5b3ce3597851110001cf6248cca3afa1547a460ab12d2624d73dbe4e'
 EXCEL_HOUSES = 'adresses_in_polygon.csv'
 FOLDER_NAME_TEX = 'Tex_files'
-HABITANTS_TEX = "table_habitants_per_street.tex"
+HABITANTS_TEX = 'table_habitants_per_street.tex'
 HTML_ALL_PHARMACY_NEW = 'all_itineraries_new.html'
 HTML_ALL_PHARMACY_OLD = 'all_itineraries_old.html'
 HTML_NEW_PHARMACY = 'itinerary_new_pharmacy.html'
@@ -41,6 +40,8 @@ POLYGON_25_PERCENT = 'polygon_25_percent'
 POLYGON_25_PERCENT_EPS = 'protection_zone_25_percent.pdf'
 POLYGON_50_PERCENT = 'polygon_50_percent'
 POLYGON_50_PERCENT_EPS = 'protection_zone_50_percent.pdf'
+POLYGON_CONSTRUCTION = 'polygon_25_percent_construction.pdf'
+POLYGON_CONSTRUCTION_ZOOM = 'polygon_25_percent_construction_zoom.pdf'
 YEAR = str(datetime.datetime.now().year)
 
 def create_folder(folder_path):
@@ -109,9 +110,10 @@ closest_points_new = closest_points_new.sort_values('sort_key').drop('sort_key',
 closest_points_new.to_csv(os.path.join(folder_path, 'distance_closest_points_new.csv'))
 gdf_routes_geometry_new = save_routes_to_shapefile(routes_geometry_new, folder_path + '/routes_new')
 
-
+cache = {}
 distance_old_new = distance_fly_old_new_implantation(coord_init, new_coordinates)
-if distance_old_new <= 100:
+distance_old_new_road = get_road_distance_and_geometry(point_to_list(coord_init), point_to_list(new_coordinates), API_KEY, cache)[0]
+if distance_old_new_road <= 100:
     near_transfert = True
 else:
     near_transfert = False
@@ -134,6 +136,8 @@ html_path = os.path.join(MAIN_FOLDER, YEAR, folder_name, HTML_NEW_PHARMACY)
 create_folder(os.path.join(MAIN_FOLDER, YEAR, folder_name, FOLDER_NAME_TEX))
 new_implentation_pdf = os.path.join(MAIN_FOLDER, YEAR, folder_name, FOLDER_NAME_TEX, MAP_NEW_PHARMACY)
 all_itinerary_old_pdf = os.path.join(MAIN_FOLDER, YEAR, folder_name, FOLDER_NAME_TEX, POLYGON_50_PERCENT_EPS)
+polygon_construction_pdf = os.path.join(MAIN_FOLDER, YEAR, folder_name, FOLDER_NAME_TEX, POLYGON_CONSTRUCTION)
+polygon_construction_pdf_zoom = os.path.join(MAIN_FOLDER, YEAR, folder_name, FOLDER_NAME_TEX, POLYGON_CONSTRUCTION_ZOOM)
 all_itinerary_new_pdf = os.path.join(MAIN_FOLDER, YEAR, folder_name, FOLDER_NAME_TEX, POLYGON_25_PERCENT_EPS)
 start_coords = point_to_list(coord_init)
 end_coords = point_to_list(new_coordinates)
@@ -168,16 +172,20 @@ elif report_type == 3:
 itinerary_cadastral_background(route_geometry, CADASTRAL_MAP, new_implentation_pdf)
 polygon_50_map(CADASTRAL_MAP, polygon_midistance_shp+'_fitted.shp', polygon_midistance_shp+'.shp', adresse_polygon, 
                all_itinerary_old_pdf, new_coordinates, gdf_routes_geometry_new, closest_points_new, bool_polygon_midistance)
-polygon_25_map(CADASTRAL_MAP, polygon_quarter_distance_shp+'.shp', all_itinerary_new_pdf, closest_points_old, 
-               coord_init, new_coordinates, gdf_routes_geometry_old, True, report_type, polygon_construction_elements)
+polygon_25_map(CADASTRAL_MAP, polygon_quarter_distance_shp+'.shp', polygon_construction_pdf, closest_points_old, 
+               coord_init, new_coordinates, polygon_construction_elements)
+polygon_25_map_zoom(CADASTRAL_MAP, polygon_quarter_distance_shp+'.shp', polygon_construction_pdf_zoom, closest_points_old, 
+               coord_init, new_coordinates, polygon_construction_elements)
+itinerary_old_pharma(CADASTRAL_MAP, all_itinerary_new_pdf, closest_points_old, coord_init, gdf_routes_geometry_old)
 
 #########################################################################################
 """Creates the .tex files"""
-cache = {}
 if closest_points_old.iloc[1,9] > 1000:
     bool_nearest_1000 = False
 else:
     bool_nearest_1000 = True
+
+bool_csv_filled = list_of_people(folder_path, FOLDER_NAME_TEX, HABITANTS_TEX)
 
 tex_dictionary = {
     'Name_pharma': closest_points_old.iloc[0,1],
@@ -194,20 +202,26 @@ tex_dictionary = {
     'New_Y' : str(x_y_new_implentation[1]),
     'Date_plan' : ref_plan[0],
     'Ref_dossier' : ref_plan[1],
-    'Distance_road': str(get_road_distance_and_geometry(point_to_list(coord_init), point_to_list(new_coordinates), API_KEY, cache)[0]),
+    'Distance_road': str(distance_old_new_road),
     'Distance_fly' : str(round(distance_old_new,2)),
     'Map_new_implentation' : new_implentation_pdf.replace('\\', '/'),
     'Map_all_itinerary_old' : all_itinerary_old_pdf.replace('\\','/'),
     'Map_all_itinerary_new' : all_itinerary_new_pdf.replace('\\','/'),
+    'Map_polygon_25':polygon_construction_pdf.replace('\\','/'),
+    'Map_polygon_25_zoom':polygon_construction_pdf_zoom.replace('\\','/'),
     'Name_pharma_fusion' : closest_points_new.iloc[0,1],
     'Id_pharma_fusion' : str(closest_points_new.iloc[0,0]), 
     'Name_pharma_near' : closest_points_new.iloc[1,1],
     'Id_pharma_near' : str(closest_points_old.iloc[1,0]),
     'Distance_road_near' : closest_points_old.iloc[1,9], 
+
     'Bool_nearest_1000' : bool_nearest_1000, 
     'Bool_near_transfert' : bool_near_transfert,
     'Bool_temp' : is_temp, 
-    'Bool_is_in_polygon': is_in_polygon
+    'Bool_is_in_polygon': is_in_polygon,
+    'Bool_list_people': bool_csv_filled,
+    'Bool_25_percent': bool_polygon_quarter,
+    'Bool_50_percent': bool_polygon_midistance
 }
 
 # Ensure the folder name is valid and does not exist

@@ -11,6 +11,7 @@
 \usepackage{hyperref}
 \usepackage{pdfpages}
 \usepackage[export]{adjustbox}
+\usepackage{longtable}
 
 \usepackage{ifthen}
 \newboolean{boolnearesttransfert}
@@ -21,6 +22,25 @@
 
 \newboolean{boolpolygon}
 \setboolean{boolpolygon}{{{ Bool_is_in_polygon }}}
+
+\newboolean{bool25}
+\setboolean{bool25}{{{ Bool_25_percent }}}
+
+\newboolean{bool50}
+\setboolean{bool50}{{{ Bool_50_percent }}}
+
+\newboolean{boolpeople}
+\setboolean{boolpeople}{{{ Bool_list_people }}}
+
+%% Conditional watermark
+\ifthenelse{\boolean{bool50}}{
+    \ifthenelse{\boolean{boolpeople}}{
+    }{
+        \usepackage{draftwatermark}
+        \SetWatermarkText{RAPPORT TEMPORAIRE}
+        \SetWatermarkScale{1.5}
+    }}
+{}
 
 \begin{document}
 \pagestyle{empty}
@@ -145,8 +165,19 @@ Rapport de transfert de la pharmacie {{ Name_pharma }} (N° APB {{ Id_pharma }})
 \clearpage
 \include{table_old_implentation}
 
+\ifthenelse{\boolean{bool50}}{
+    \clearpage
+    \include{table_habitants_per_street}
+}{}
+
+
 %si moins 100m
 \includepdf[fitpaper,rotateoversize]{{{ Map_new_implentation }}}
+
+\ifthenelse{\boolean{bool25}}{
+    \includepdf[fitpaper,rotateoversize]{{{ Map_polygon_25 }}}
+    \includepdf[fitpaper,rotateoversize]{{{ Map_polygon_25_zoom }}}
+}{}
 
 \includepdf[fitpaper,rotateoversize]{{{ Map_all_itinerary_new }}}
 

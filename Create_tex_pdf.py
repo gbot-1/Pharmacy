@@ -81,7 +81,7 @@ def list_of_people(folder_path, FOLDER_NAME_TEX, HABITANTS_TEX):
         df_summary.to_csv(folder_path + "/people_by_street.csv", index=False)
         bool_csv_filled = True
         latex_file_path = os.path.join(folder_path, FOLDER_NAME_TEX, HABITANTS_TEX)
-        habitants_to_table(df, latex_file_path, bool_csv_filled)
+        habitants_to_table(df_summary, latex_file_path, bool_csv_filled)
         return bool_csv_filled
     else:
         bool_csv_filled = False
@@ -93,30 +93,41 @@ def habitants_to_table(df, latex_file_path, bool_csv_filled):
     # Open a file to write the LaTeX code
     with open(latex_file_path, 'w', encoding='utf-8') as f:
 
-        f.write("\\section*{Distances entre la nouvelle adresse et les officines voisines}\n")
+        f.write("\\section*{Distribution des habitants, par rue, au sein de la zone d'influence géographique}\n")
         
-        # Start the table environment
-        f.write('\\begin{table}[H]\n')
-        f.write('\\centering\n')
-        f.write('\\begin{tabular}{|r|l|l|c|}\n')
+        # Start the longtable environment (NO \begin{table}!)
+        f.write('\\begin{longtable}{|l|l|c|c|}\n')
         f.write('\\hline\n')
 
-        # Write the header row
-        f.write('\\multicolumn{1}{|r|}{\\textbf{Rue}} & \\textbf{Ville} & \\textbf{Code Postal} & \\textbf{Habitants} \\\\\n')
+        # Write the header row for first page
+        f.write('\\textbf{Rue} & \\textbf{Ville} & \\textbf{Code Postal} & \\textbf{Habitants} \\\\\n')
         f.write('\\hline\n')
+        f.write('\\endfirsthead\n\n')
+
+        # Header for continuation pages
+        f.write('\\multicolumn{4}{l}{{\\tablename\\ \\thetable{} -- suite de la page précédente}} \\\\\n')
+        f.write('\\hline\n')
+        f.write('\\textbf{Rue} & \\textbf{Ville} & \\textbf{Code Postal} & \\textbf{Habitants} \\\\\n')
+        f.write('\\hline\n')
+        f.write('\\endhead\n\n')
+
+        # Footer for all pages except last
+        f.write('\\hline\n')
+        f.write('\\multicolumn{4}{r}{{Suite à la page suivante}} \\\\\n')
+        f.write('\\endfoot\n\n')
+
+        # Footer for last page
+        f.write('\\endlastfoot\n\n')
 
         if bool_csv_filled:
             # Write the data rows
             for index, row in df.iterrows():
-                if index == 0:
-                    continue
                 f.write(f"{row[2]} & {row[1]} & {row[0]} & {row[3]} \\\\\n")
                 f.write('\\hline\n')
         else:
             f.write(f"Rue du Lorem & Ipsum & 1.6180 & 3.1415 \\\\\n")
             f.write('\\hline\n')
 
-                # End the table environment
-        f.write('\\end{tabular}\n')
-        f.write("\\caption{Nombre d'habitants par rue dans la Zone d'Influence Géographique}\n")
-        f.write('\\end{table}\n')
+        # End the longtable environment
+        f.write("\\caption{Nombre d'habitants par rue dans la Zone d'Influence Géographique} \\label{tab:habitants} \\\\\n")
+        f.write('\\end{longtable}\n')
