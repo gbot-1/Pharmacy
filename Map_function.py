@@ -4,6 +4,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from shapely.geometry import LineString
 from adjustText import adjust_text
+import contextily as ctx
 
 def get_route(start_coords, end_coords, API_KEY):
     # OpenRouteService Directions API endpoint
@@ -81,8 +82,8 @@ def itinerary_cadastral_background(route_geometry, cadastral_map, map_path):
     texts = []
     
     fig, ax = plt.subplots(figsize=(12, 12))
-    parcels.plot(ax=ax, color='white', edgecolor='silver', linewidth=0.3, alpha=0.5)
-    gdf_transformed.plot(ax=ax, color='blue', linewidth=2.5, alpha=0.6)
+    parcels.plot(ax=ax, color='white', edgecolor='black', linewidth=0.3, alpha=0.5)
+    # gdf_transformed.plot(ax=ax, color='blue', linewidth=2.5, alpha=0.6)
     ax.plot(x_coords[0], y_coords[0], 'ro', markersize=12, zorder=2)
     text = ax.text(x_coords[0], y_coords[0], '   Ancienne', fontsize=12, color='black', 
             ha='left', va='bottom', weight='bold')
@@ -92,6 +93,17 @@ def itinerary_cadastral_background(route_geometry, cadastral_map, map_path):
     text = ax.text(x_coords[-1], y_coords[-1], '   Nouvelle', fontsize=12, color='black', 
             ha='left', va='bottom', weight='bold')
     texts.append(text)
+
+    # Add basemap - this will reproject automatically
+    ctx.add_basemap(ax, crs=gdf_transformed.crs.to_string(), 
+                    source=ctx.providers.Esri.WorldImagery,  # Satellite imagery
+                    alpha=0.6,  # Adjust transparency (0-1)
+                    zorder=0)   # Put it behind everything
+    ctx.add_basemap(ax, crs=gdf_transformed.crs.to_string(), 
+                source=ctx.providers.CartoDB.PositronOnlyLabels,  # Satellite imagery
+                zorder=1)   # Put it behind everything
+
+
     ax.set_aspect('equal', adjustable='box')
     if width<50:
         ax.set_xlim([minx-buffer_x*0.8,maxx+buffer_x*0.8])
@@ -109,7 +121,7 @@ def itinerary_cadastral_background(route_geometry, cadastral_map, map_path):
     ax.set_ylabel('Nord (EPSG:3812)', fontsize=12)
     plt.title("Distance entre les deux adresses")
     plt.tight_layout()
-    plt.savefig(map_path, dpi=600, bbox_inches='tight')
+    plt.savefig(map_path, dpi=200, bbox_inches='tight')
 
 def polygon_50_map(cadastral_map, fitted_polygon, polygon_50, adresse_polygon, polygon_50_percent_pdf, 
                         coords_new_pharma, gdf_routes, gdf_pharmacy, bool_polygon):
@@ -388,9 +400,8 @@ def polygon_25_map_zoom(cadastral_map, polygon_25, map_path, gdf_pharmacy, old_c
         if hasattr(artist, 'set_clip_box'):
             artist.set_clip_box(ax.bbox)
 
-    adjust_text(texts, 
-            arrowprops=dict(arrowstyle='->', color='gray', lw=0.5),
-            ax=ax)
+    adjust_text(texts, ax=ax)
+
     plt.title("Zoom sur le polygone de 25%")
     plt.tight_layout()
     plt.savefig('polygon_25_zoom.png', dpi=300, bbox_inches='tight')

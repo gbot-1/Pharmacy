@@ -19,7 +19,7 @@ from Map_function import*
 from save_fig import*
 from polygon_drawing import*
 
-ADRESS_CSV = 'D:/Pharmacy_Raph/adresses.csv'
+ADRESS_CSV = 'D:/Pharmacy_Raph/adresses_wallonie.csv'
 CADASTRAL_MAP = 'D:/Pharmacy_Raph/QGIS/Cadastre/Bpn_CaPa_WAL.shp'
 FILEPATH = 'D:/Pharmacy_Raph/Lst_Pharmacies_pub_Extended.xlsx'
 MAIN_FOLDER = "D:/Pharmacy_Raph"
